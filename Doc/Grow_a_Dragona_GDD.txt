@@ -1,0 +1,934 @@
+﻿GROW A DRAGONA
+Game Design Document v1
+
+
+
+
+Vision Statement
+Don't build a Roblox game about dragons. Build the world's most lovable dragon IP that can live across games, media, AI, toys and future technologies for the next 50 years.
+	
+
+Field
+	Details
+	Game Title
+	Grow a Dragona
+	Platform
+	Roblox
+	Genre
+	Idle Farm / Gacha Collection
+	Target Audience
+	Ages 8-16, casual and mid-core Roblox players
+	GDD Version
+	v1 — July 2026
+	GDD Owner
+	Giovanni
+	Development Start
+	July 2026
+	
+
+  
+
+
+
+
+
+
+
+
+
+
+
+Section 1 — Game Overview
+1.1 Game Summary
+Grow a Dragona is an idle farm game for Roblox where players hatch dragons, watch them grow from babies to adults, and collect the eggs they produce to sell for gold. That gold is reinvested into gacha hatching eggs, giving players a chance to unlock rarer and more powerful dragons. The rarer the dragon, the more valuable the eggs it produces, creating a natural loop of progression and collection.
+
+
+At night, other players can raid your farm and steal uncollected production eggs. This creates a persistent social tension that makes every session feel meaningful, whether you're building your collection during the day or defending it at night.
+
+
+Why this works
+DragonVale proved players spend $200M+ raising and collecting dragons. Grow a Garden proved the idle RNG loop generates $12M/month on Roblox. No game has combined both in 3D with a real-time social raid layer. Grow a Dragona is that game.
+	
+
+1.2 Core Pillars
+Pillar
+	Description
+	Passive Progression
+	Your dragons produce eggs while you are offline. Every login rewards you with something ready to sell.
+	Gacha Thrill
+	Rare dragons are genuinely hard to get. Saving gold for a rare hatching egg takes effort and when it hatches, that moment is real. 
+	Social Tension
+	Your nest is never completely safe at night. Other players have a real reason to visit your farm to take what you haven't collected yet. That risk makes every egg you produce feel valuable.
+	Collection Depth
+	Every dragon you hatch is permanently yours and visibly alive on your farm. The rarer your collection, the more impressive your farm looks to visitors and the more gold you produce per hour.
+	
+
+1.3 USP
+Unique Selling Point
+The only idle game on Roblox where you watch your dragons grow and produce eggs to buy rarer ones, while other players try to steal your eggs at night.
+	
+
+Section 2 — Core Gameplay Loop
+2.1 The Loop
+The core loop of Grow a Dragona is designed to be immediately understandable in under 30 seconds, while providing enough depth to sustain months of daily play. Every action feeds back into the same cycle: hatch, grow, produce, sell, buy, repeat.
+
+
+
+
+Step
+	Action
+	1
+	Start with one free Common Egg and hatch your first dragon
+	2
+	Baby dragon grows into Adult by feeding it element-specific food
+	3
+	Adult dragon produces production eggs passively over time
+	4
+	Collect production eggs and sell them for gold
+	5
+	Use gold to buy gacha hatching eggs from the shop
+	6
+	Gacha hatch reveals a new dragon with RNG rarity and element
+	7
+	Place new dragons on your farm plot,  element synergy bonuses apply
+	8
+	At night, other players can raid your farm to steal uncollected eggs
+	9
+	Defend actively if online, or rely on Dark dragon synergy if offline
+	
+
+  
+
+2.2 Session Design
+Grow a Dragona is designed to support two types of play sessions:
+
+
+Session Type
+	Duration
+	What happens
+	Quick session
+	5-15 minutes
+	Collect eggs, sell for gold, buy 1-3 gacha pulls, feed dragons
+	Deep session
+	30-60+ minutes
+	Expand plot, manage element synergies, defend raids, save for rare eggs
+	
+
+Key design goal
+A new player must be able to buy their first gacha hatching egg within 5-15 minutes of joining the game. This first pull is the hook, everything else is retention.
+	
+
+Section 3 — Dragon System
+3.1 Elements
+Every dragon in Grow a Dragona belongs to one of five elements. The element defines three things: the dragon's visual identity, the type of food it needs to grow, and the synergy bonus it contributes when grouped with other dragons of the same element on the farm.
+
+
+Element
+	Food Type
+	Synergy Bonus
+	Fire
+	Spicy food: chili peppers, hot sauce, fire berries
+	Gold bonus from production egg sales
+	Water
+	Seafood: fish, seaweed, pearl clams
+	Production speed boost: eggs produced faster
+	Earth
+	Plants: mushrooms, roots, magical herbs
+	Egg quality variant chance: more Golden and Heavy eggs
+	Light ⚠️ Rare
+	Sweets: magical candy, honey, star sugar
+	Gacha luck boost: better odds on hatching eggs. 50% less likely to appear in any egg tier than Fire, Water, or Earth.
+	Dark ⚠️ Rare
+	Sour / acid: lemons, vinegar berries, dark crystals
+	Raid defense: raiders move slower inside your farm. 50% less likely to appear in any egg tier than Fire, Water, or Earth.
+	  
+
+Element Distribution — Light & Dark are rarer
+Within every egg tier, Fire, Water, and Earth each have double the probability of appearing compared to Light and Dark. For example, if a Common Egg has a 99% chance of producing a Common dragon, that pool is distributed as: Fire ~22%, Water ~22%, Earth ~22%, Light ~11%, Dark ~11% (rough approximation, exact values to be tuned during balance testing). Light and Dark dragons are more desirable strategically, so they are intentionally harder to obtain.
+	
+
+3.2 Rarities
+Every dragon also has a rarity level that determines its production output, its visual impact on the farm, and how difficult it is to obtain. Rarity is determined exclusively by the gacha system when a hatching egg is opened.
+
+
+Rarity
+	Color
+	Production multiplier
+	Pool size
+	Difficulty to obtain
+	Common
+	White / Grey
+	1x base production
+	Very large
+	Easy — first pull
+	Rare
+	Blue
+	3x base production
+	Medium
+	1-2 hours of play
+	Epic
+	Purple
+	8x base production
+	Small
+	Several days of play
+	Legendary
+	Gold
+	25x base production
+	Very small
+	Weeks of play or Robux
+	Mythic
+	Rainbow
+	100x base production
+	Extremely rare
+	Almost impossible without Robux
+	
+
+  
+
+3.3 Dragon Growth — Baby to Adult
+Every dragon hatches as a Baby. Baby dragons cannot produce eggs. The player must feed the baby element-specific food to trigger its growth into an Adult. Without food, the baby still grows but at a significantly slower rate.
+
+
+Stage
+	Behavior
+	Visual
+	Baby Dragon
+	No egg production. Requires food to grow. Follows player around the farm.
+	Small, round, big eyes, stubby wings. Cute and helpless looking.
+	Adult Dragon
+	Produces eggs passively. Sits on nest in assigned plot slot. Active synergy bonuses apply.
+	Full size, detailed design, element-specific effects (fire breathing, water bubbles, etc.)
+	  
+
+
+
+3.4 Element Synergy System
+When multiple dragons of the same element are placed in display slots on the farm simultaneously, they generate a synergy bonus that scales with the number of same-element dragons present. This system creates meaningful strategic decisions about which dragons to display.
+
+
+Same element dragons
+	🔥 Fire
+	🌊 Water
+	🌱 Earth
+	✨ Light
+	🌑 Dark
+	2 dragons
+	+10% gold
+	+10% speed
+	+10% quality
+	+10% luck
+	-10% raider speed
+	3 dragons
+	+25% gold
+	+25% speed
+	+25% quality
+	+25% luck
+	-25% raider speed
+	4 dragons
+	+50% gold
+	+50% speed
+	+50% quality
+	+50% luck
+	-50% raider speed
+	6 dragons
+	+100% gold
+	+100% speed
+	+100% quality
+	+100% luck
+	-65% raider speed
+	12 dragons (full set)
+	+200% gold + fire aura
+	+200% speed + rain effect
+	+200% quality + nature glow
+	+200% luck + light beam
+	-75% speed + dark aura alert
+	
+
+3.5 Equipped Dragon — Mascota
+Each player can equip one dragon from their collection as a mascota so it follows the player around the farm as a visible companion. The mascota provides passive benefits that scale with the equipped dragon's rarity, and plays an active role during night raids.
+
+
+Rarity
+	Mascota Benefit
+	Common
+	5% chance to drop food item when collecting production eggs
+	Rare
+	10% food drop chance + small gold bonus on egg collection
+	Epic
+	15% food drop + actively reduces number of eggs stealable in raids
+	Legendary
+	20% food drop + raid defense active + 5% production boost
+	Mythic
+	25% food drop + raid defense + 10% production boost + egg variant quality boost
+	
+
+  
+
+Section 4 — Economy System
+4.1 Economy Overview
+Grow a Dragona has a single core currency, the Gold and two distinct types of eggs that serve completely different purposes. Understanding this distinction is critical to understanding the entire economy.
+
+
+The key distinction
+Production eggs are NOT hatching eggs. Production eggs are the output of your dragons and they are sold for gold. Hatching eggs are purchased from the shop with gold or Robux and they are the only way to get new dragons.
+	
+
+  
+
+4.2 Production Eggs
+Production eggs are laid by adult dragons passively over time. They are collected from the nest and sold at the market for gold. The sale value of each egg depends on its variant so production eggs can appear in different forms that affect their gold value.
+
+
+Egg Variant
+	Gold Multiplier
+	Production Rate
+	Drop Chance
+	Normal
+	1x base
+	Standard
+	Most common
+	Mini
+	0.7x
+	Faster than normal
+	Common
+	Heavy
+	2x
+	Slower than normal
+	Uncommon
+	Giant
+	3x
+	Much slower
+	Rare
+	Golden
+	5x
+	Standard
+	Very rare: viral moment
+	
+
+  
+
+4.3 Gacha Hatching Eggs — Gold Prices
+Hatching eggs are purchased from the shop using gold earned from selling production eggs. Each tier of hatching egg has a different price and a different rarity pool, determining what dragon can emerge from the hatch.
+
+
+Egg Tier
+	Gold Price
+	Common
+	Rare
+	Epic
+	Legendary
+	Mythic
+	Common Egg
+	10 gold
+	99%
+	1%
+	0%
+	0%
+	0%
+	Rare Egg
+	50 gold
+	0%
+	94%
+	5.9%
+	0.1%
+	0%
+	Epic Egg
+	250 gold
+	0%
+	0%
+	89%
+	10.9%
+	0.1%
+	Legendary Egg
+	2,000 gold
+	0%
+	0%
+	0%
+	94%
+	6%
+	Mythic Egg
+	20,000 gold
+	0%
+	0%
+	0%
+	0%
+	100%
+	
+
+4.4 Luck Boost System
+The Luck Boost system allows players to temporarily improve their gacha odds without changing the base rarity of the eggs they purchase. Luck boosts are consumable items that stack with each other and with other bonuses. This system is the primary driver of repeat spending behavior.
+
+
+Boost
+	Source
+	Effect
+	Duration
+	Lucky Food
+	Drops from gameplay, events
+	+50% gacha luck
+	10 minutes
+	Dragon Charm
+	Gold or Robux purchase
+	+200% gacha luck
+	30 minutes
+	Mythic Potion
+	Robux or special events only
+	+1000% gacha luck
+	1 hour
+	
+
+4.5 Robux Egg Shop
+Players can purchase premium hatching eggs directly with Robux. These eggs have significantly better rarity pools than gold eggs of the same tier. Guaranteed eggs ensure a specific rarity but never a specific dragon — the element and design remain RNG, preserving the collection drive.
+
+
+Egg
+	Robux
+	USD approx
+	Odds
+	Rare Egg Pack (5x)
+	80 Robux
+	~$1
+	94% Rare, 5.9% Epic, 0.1% Legendary
+	Epic Egg
+	200 Robux
+	~$2.50
+	89% Epic, 10.9% Legendary, 0.1% Mythic
+	Legendary Egg (Standard)
+	800 Robux
+	~$10
+	85% Legendary, 14.9% Mythic, 0.1% Secret
+	Legendary Egg (Guaranteed)
+	1,600 Robux
+	~$20
+	100% Legendary, element and design RNG
+	Mythic Egg (Standard)
+	2,000 Robux
+	~$25
+	70% Mythic, 30% Legendary
+	Mythic Egg (Guaranteed)
+	4,500 Robux
+	~$56
+	100% Mythic,  element and design RNG
+	
+
+
+
+
+
+Why Guaranteed eggs still work for collection
+Even a Guaranteed Mythic egg does not tell you which Mythic dragon you will get. Players who want a specific Mythic fire dragon but receive a Mythic water dragon have a strong reason to trade with other players — keeping the social economy alive.
+	
+
+Section 5 — Farm System
+5.1 The Plot
+Each player owns a farm plot — a physical 3D space in the Roblox world that is visible to other players. The plot is where dragons live, produce eggs, and can be raided at night. The plot starts small and can be expanded using gold or Robux.
+
+
+The plot has a maximum of 12 display slots — the number of dragons that can be actively producing at the same time. Additional dragons beyond the display limit go into unlimited storage.
+
+
+  
+
+5.2 Plot Expansion
+Level
+	Max dragons in display
+	Gold cost
+	Robux cost
+	Starter
+	2 dragons
+	Free
+	Free
+	Level 2
+	4 dragons
+	500 gold
+	50 Robux
+	Level 3
+	6 dragons
+	2,000 gold
+	150 Robux
+	Level 4
+	8 dragons
+	8,000 gold
+	400 Robux
+	Level 5
+	10 dragons
+	25,000 gold
+	800 Robux
+	Level 6
+	12 dragons (max)
+	80,000 gold
+	1,500 Robux
+	
+
+5.3 Storage
+* Unlimited storage for all dragons not in display slots
+* No cost to store dragons, players can collect as many as they want
+* Players can swap dragons between display and storage at any time, for free
+* Storage dragons do not produce eggs and do not contribute to element synergy
+* Storage is accessible from a dedicated UI panel on the farm
+
+
+5.4 Display Strategy
+With a maximum of 12 display slots and 5 elements available, players must make strategic decisions about which dragons to display. The three main strategic approaches are:
+
+
+Strategy
+	Setup
+	Benefit
+	Full element set
+	12 dragons of same element
+	+200% of that element's bonus + unique visual effect
+	Dual element
+	6 of one element + 6 of another
+	+100% of two different bonuses simultaneously
+	Mixed strategy
+	Mix of multiple elements based on goal
+	Flexible bonuses — e.g. 6 Dark + 4 Light + 2 Fire for defense + luck + gold
+	
+
+Section 6 — Night Raid System
+6.1 Overview
+The night raid system is the social layer that makes Grow a Dragona a living world rather than a single-player idle game. At night, any player can visit any other player's farm and attempt to steal uncollected production eggs. The farm owner can be present and defend in real time so there is no guaranteed safe window for raiders.
+
+
+Design intent
+The night raid should create tension and stories, not frustration. Raiders risk their time for a reward. Defenders risk their eggs if they don't log in. Both sides have tools to improve their.
+	
+
+  
+
+6.2 How Raids Work
+For the raider:
+* Visit any player's farm during the night cycle
+* Uncollected production eggs in nests are available to grab
+* Physically move through the farm to reach and collect eggs
+* Dark dragon synergy on the defender's farm slows your movement
+* If the farm owner is present they can actively push, block, or use their mascota against you
+* Escape the farm with eggs before the owner stops you
+
+
+For the defender:
+* Can be present on your farm at any time including during the night cycle
+* If online, can actively confront raiders in real time using your mascota
+* If offline, Dark dragon synergy is your passive defense it slows raiders without you being present
+* Collect your eggs regularly to minimize what raiders can steal
+* Full Dark dragon set (12 Dark dragons) triggers a visual aura that notifies you when someone enters your farm
+
+
+6.3 Dark Dragon Defense — Movement Slow
+Dark dragons in display
+	Raider movement speed penalty
+	2 Dark dragons
+	-10% movement speed
+	4 Dark dragons
+	-25% movement speed
+	6 Dark dragons
+	-50% movement speed
+	12 Dark dragons (full set)
+	-75% movement speed + dark aura alert that notifies farm owner on entry
+	
+
+6.4 Light Mascota — Dark Slow Counter
+A Light dragon equipped as mascota partially counters the movement slow applied by Dark dragon synergy. This creates a strategic meta layer so raiders who target farms with heavy Dark synergy benefit from equipping a Light mascota. The counter scales with the Light mascota's rarity but never fully negates the Dark slow.
+
+
+Light mascota rarity
+	Dark slow counter
+	Common
+	-5% of active Dark slow
+	Rare
+	-10% of active Dark slow
+	Epic
+	-15% of active Dark slow
+	Legendary
+	-20% of active Dark slow
+	Mythic
+	-25% of active Dark slow
+	
+
+Example
+Defender has 12 Dark dragons (-75% raider speed). Raider equips a Mythic Light mascota (-25% counter). Net slow = -50%. The raider still moves significantly slower, the defense remains effective but is not invincible. No Light mascota can fully negate a full Dark set.
+	
+
+6.5 Mascota in Raids
+The equipped mascota plays an active role in raids for both sides. The mascota's effectiveness in raids scales with its rarity:
+
+
+* Owner mascota can push raiders physically, slow their movement, or block their path to egg nests
+* Light mascota (raider) so this counters Dark dragon slow as described in Section 6.4
+* This creates a meta layer where players who raid frequently choose their mascota based on the farm they are targeting
+
+
+  
+
+
+
+Section 7 — Monetization
+7.1 Monetization Philosophy
+Grow a Dragona follows a free-to-play model where all core progression is achievable without spending real money. Robux purchases accelerate progress and provide cosmetic options so they never gate content or create a pay-to-win situation.
+
+
+The rule
+A patient free player can reach the same rare dragons as a Robux spender. The difference is time, not access. This preserves community trust and sustains long-term spending from players who feel the game is fair.
+	
+
+7.2 VIP Gamepass
+* Production boost: +20% gold from all egg sales
+* Exclusive nest cosmetic: VIP-only visual theme for your farm
+* Daily free Lucky Food: one free luck boost per day
+* Priority shop access: VIP-only daily deals on hatching eggs
+
+
+7.3 Cosmetic Currency — Dragon Gems
+* Sell duplicate dragons to receive Dragon Gems as a separate currency
+* Dragon Gems are used exclusively for cosmetics like nest skins, dragon effect trails, plot decorations
+* Dragon Gems never affect production, gacha odds, or any gameplay system
+* Creates a sink for duplicate dragons and reduces frustration from repeated pulls
+
+
+
+
+7.4 Luck Boosts — Robux
+* Dragon Charm — 50 Robux — +200% luck for 30 minutes
+* Mythic Potion — 300 Robux — +1000% luck for 1 hour
+* Luck Bundle (3x Dragon Charm) — 120 Robux — best value option
+
+
+7.5 Robux Egg Shop
+Detailed in Section 4.5. Key principle: Guaranteed eggs guarantee rarity only — never a specific dragon. This ensures the collection drive remains active even for players who spend heavily.
+
+
+Section 8 — MVP Scope
+8.1 What ships in Month 1-2 (before launch)
+MVP Definition
+The MVP must be fully playable and fun on its own. Every core system must work. The first update ships on launch day and it is built during Month 2 while Month 1 systems are being polished.
+	
+
+Core Systems:
+* Idle loop: hatch, grow, produce eggs, sell for gold, buy gacha
+* Night raid system: enter farms, steal eggs, defend with Dark synergy
+* Element synergy system with all 5 elements with scaling bonuses
+* Farm plot with expansion from Starter to Level 4 (8 dragons max in MVP)
+* Equipped dragon mascota system
+* Food system:  5 food types, one per element
+* Gacha shop: all 5 gold egg tiers
+* Robux egg shop: full Robux egg lineup
+* VIP Gamepass
+* Basic farm cosmetics
+
+
+Dragon Pool:
+
+
+Rarity
+	Count
+	Element Distribution
+	Common
+	15
+	3 Fire, 3 Water, 3 Earth, 3 Light, 3 Dark
+	Rare
+	12
+	3 Fire, 3 Water, 2 Earth, 2 Light, 2 Dark
+	Epic
+	7
+	2 Fire, 2 Water, 1 Earth, 1 Light, 1 Dark
+	Legendary
+	5
+	1 Fire, 1 Water, 1 Earth, 1 Light, 1 Dark
+	Mythic
+	3
+	1 Fire, 1 Water, 1 Dark
+	TOTAL
+	42
+	
+
+	
+
+
+
+
+
+
+
+8.2 First Update — Ships on Launch Day
+* 10-15 new dragons across all rarities
+* New food types and food shop expansion
+* Plot expansion to Level 5 and Level 6 unlocked
+* One additional gamepass option
+* General polish, bug fixes, economy balance adjustments
+* First seasonal cosmetic item that is tied to launch window
+
+
+Section 9 — Wow Moments & Virality
+9.1 Overview
+Every viral Roblox game has moments that players record without being asked. These moments are not planned marketing so they emerge naturally from the gameplay. Grow a Dragona is designed around five core wow moments, each of which can generate clips organically.
+
+
+9.2 The Five Wow Moments
+1. The Mythic Hatch Reveal
+A Mythic dragon hatches and the camera zooms in, the screen flashes with rainbow effects, the dragon roars on reveal. This happens organically every day across every server. Players record it without being asked because the moment is genuinely surprising and the odds of it happening are so low.
+Reference: Pet Simulator 99 where base rates estimated at 1 in 500,000 to 1 in 1,000,000. The rarity alone makes the reveal a real event.
+  
+
+2. The Night Raid Clutch
+A raider enters a farm, moves slowly through Dark dragon synergy, gets almost to the eggs and the farm owner appears just in time to chase them out. The tension of real-time confrontation between two players is the most social and most shareable moment in the game.
+3. The Egg Rain Event
+Golden eggs fall from the sky across the entire server simultaneously. The visual spectacle alone generates clips so every player stops what they are doing to look up. The server-wide nature of the event means everyone experiences it together.
+Reference: Grow a Garden Black Hole event with hundreds of TikToks generated purely from the visual spectacle of the sky changing.
+  
+
+4. The Boss Dragon Event
+A giant Boss Dragon spawns on the map with massive HP. The entire server attacks it together. When it falls, it drops a guaranteed rare egg for all players who contributed damage. The cooperative moment that every player on the server working together and this is rare in idle games and generates the kind of community memory that keeps players coming back.
+Reference: Pet Simulator 99 RNG Ultra Chest like 20 billion HP, server cooperation required.
+  
+
+5. The Full Element Set Flex
+A player fills all 12 display slots with dragons of the same element and triggers the full set visual effect with their entire farm glows with a unique elemental aura visible from anywhere on the server. This is the ultimate flex moment, a public display of collection depth that other players can see in real time.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Section 10 — Post-Launch Roadmap
+10.1 Timeline
+Phase
+	Scope
+	Month 1-2 — MVP
+	Core loop, 35-45 dragons, night raid, element synergy, gacha shop, VIP gamepass
+	Month 3 — Launch
+	MVP + Day 1 Update live — 10-15 new dragons, expanded shop, new gamepass
+	Month 4-6
+	Egg Rain event, first admin sessions, Halloween seasonal dragons, Mini Boss event
+	Month 7-9
+	Dragon Void event, Hourly Golden Egg permanent, player egg market, new dragon batch
+	Month 10-12
+	Guild system, clan raids, leaderboards, anniversary exclusive dragon, Holiday seasonal overhaul
+	Year 2
+	Merchandise, Dragon lore system, IP expansion, franchise growth
+	
+
+Key production principle
+The team always builds one update ahead. What launches in Month 4 is finished before Month 3 launch. Never shipping under pressure — the Day 1 Update is built during Month 2 while Month 1 systems are being polished.
+	
+
+Section 11 — Team & Technical Scope
+11.1 Suggested Team
+Role
+	Count
+	Core Responsibilities
+	Producer
+	1
+	Roadmap, milestones, team coordination, LiveOps planning
+	Game Designer
+	1
+	Economy balance, progression curve, dragon design, content systems, QA
+	Game Developer
+	2
+	Core systems, RNG engine, night raid, economy, gacha, farm expansion
+	3D Artist / Animator
+	2
+	Dragon models, baby/adult stages, farm assets, seasonal content
+	UI/UX Artist
+	1
+	All game interfaces, shop screens, hatch reveal flow, icons
+	VFX Artist
+	1
+	Hatch reveal effects, element synergy auras, egg crack animations, raid visual feedback
+	
+
+11.2 Technical Requirements
+* Roblox Studio: primary development environment
+* Server-side RNG calculation: gacha odds never calculated client-side
+* Server-side raid logic: egg theft transactions server-authoritative, never client-side
+* DataStore: persistent player data (dragon collection, gold, farm state)
+* Remote Events: farm visit, raid interactions, mascota actions
+* Day/night cycle: server-synchronized across all players in the same server
+* Anti-exploit layer: all economy transactions logged server-side, audit trail from day one
+
+
+Grow a Dragona — GDD References
+
+
+
+
+Gacha System & Rarity Odds
+System
+	Source
+	URL
+	Mythic: 1 in 3B odds
+	PS99 Void RNG Event, May 2026
+	dungeonpath.com/posts/pet-simulator-99/rng-event-guide/
+	Huge rate 0.001%–0.5% per hatch
+	BloxToolbox PS99 Calculator
+	bloxtoolbox.com/pages/calculators/pet-sim-99-hatch-odds.html
+	Hatch math 1-(1-p)^N
+	BloxToolbox Huge Hunting Guide
+	bloxtoolbox.com/pages/guides/pet-sim-99-huge-guide.html
+	Common 99% / Rare 1% base pool
+	PS99 RNG Event Wiki 2026
+	pet-simulator.fandom.com/wiki/RNG_Event_2026_(Pet_Simulator_99)
+	
+
+Luck Boost System
+System
+	Source
+	URL
+	Combo streaks up to 1.75x
+	PS99 RNG Event strategy guide
+	dungeonpath.com/posts/pet-simulator-99/rng-event-guide/
+	Server-wide weather luck buff
+	PS99 Wiki — RNG Event 2026
+	pet-simulator.fandom.com/wiki/RNG_Event_2026_(Pet_Simulator_99)
+	6-hour Luck Machine boost model
+	BIG Games: PS99 Spring Update 75
+	biggames.io/post/pet-simulator-99-update-75
+	
+
+Production Eggs & Economy
+System
+	Source
+	URL
+	Weight exponent ~2.65 — small diff = big value
+	Grow a Garden 2 Calculator
+	game.guide/grow-a-garden-2-calculator
+	Golden 20x, Rainbow 50x, Shocked 100x multipliers
+	GAGData: Profit Calculator
+	gagdata.com/calculators/profit-calculator
+	Decayed crop = 20% value penalty model
+	Grow a Garden 2 Calculator
+	game.guide/grow-a-garden-2-calculator
+	Epic crops best Sheckle-per-minute for mid-game
+	GAGData: Complete Crop List 2026
+	gagdata.com/crops
+	
+
+Passive Income & Session Design
+System
+	Source
+	URL
+	Dragon passive income for DragonVale model
+	DragonVale Wiki: Breeding for Profit
+	dragonvale.fandom.com/wiki/Breeding_for_Profit
+	Nightmare Dragon 13M dragoncash: top earner
+	DragonVale Wiki: Breeding for Profit
+	dragonvale.fandom.com/wiki/Breeding_for_Profit
+	5-15 min session target: multi-harvest model
+	Grow a Garden Calculator
+	growagarden-calculator.app/
+	
+
+Dragon Pool & Rarity Distribution
+System
+	Source
+	URL
+	Large Common pool (15): first impression
+	DragonVale: large base pool at launch
+	dragonvale.fandom.com/wiki/Breeding_for_Profit
+	Epic 0.5%–2.5% base breeding rate
+	DragonVale Wiki: Breeding
+	dragonvale.fandom.com/wiki/Breeding
+	Mythic minimum 3: extreme scarcity model
+	PS99 Titanic model: fewer than 5 per event
+	dungeonpath.com/posts/pet-simulator-99/rng-event-guide/
+	Legendary minimum 5: one per element
+	Internal design: collection completeness
+	dragonvale.fandom.com/wiki/Breeding_Odds
+	
+
+Robux Egg Pricing
+System
+	Source
+	URL
+	Legendary Standard 800 Robux (~$10)
+	PS99 Exclusive Egg pricing
+	biggames.io/post/pet-simulator-99-update-75
+	Guaranteed = rarity only, not specific dragon
+	PS99 Titanic design as extreme flex
+	earnaldo.com/blog/pet-simulator-99-update-may-2026
+	Rare Pack 5x for 80 Robux (~$1)
+	PS99 Spring Diamond Eggs model
+	biggames.io/post/pet-simulator-99-update-75
+	
+
+Night Raid System
+System
+	Source
+	URL
+	Steal mechanic: all-time CCU record 25.4M
+	Steal a Brainrot Wikipedia
+	en.wikipedia.org/wiki/Steal_a_Brainrot
+	Carrying slows you: timing is essential
+	PlayXArena:  Steal a Brainrot guide
+	playxarena.com/steal-a-brainrot-roblox/
+	Night cycle as core mechanic: 27.8B visits
+	99 Nights in the Forest Wikipedia
+	en.wikipedia.org/wiki/99_Nights_in_the_Forest
+	Dark slow % / Light counter:Internal design
+	To be validated in playtest
+	bloxtoolbox.com/pages/calculators/pet-sim-99-hatch-odds.html
+	
+
+Wow Moments & Virality
+System
+	Source
+	URL
+	Mythic reveal: 1 in 3B odds organic clips
+	PS99 Void RNG Event guide
+	dungeonpath.com/posts/pet-simulator-99/rng-event-guide/
+	Dragon Fusion: Neon/Mega Neon model
+	Adopt Me Wiki: Mega Neons
+	adoptme.fandom.com/wiki/Mega_Neons
+	Hourly Golden Egg: Hourly Anomaly model
+	PS99 RNG Event guide
+	dungeonpath.com/posts/pet-simulator-99/rng-event-guide/
+	Boss Dragon: 20B HP server cooperation
+	PS99 RNG Ultra Chest
+	dungeonpath.com/posts/pet-simulator-99/rng-event-guide/
+	Egg Rain: Black Hole event (hundreds of TikToks)
+	Grow a Garden admin events
+	mygagcalculator.com/grow-a-garden-admin-events-schedule/
+	
+
+Market Validation
+System
+	Source
+	URL
+	DragonVale $200M+ lifetime
+	DragonVale Wikipedia
+	en.wikipedia.org/wiki/DragonVale
+	Grow a Garden $12M/month May 2025
+	Profitable.app
+	profitable.app/roblox/games/grow-a-garden
+	Grow a Garden 35.3B visits, 22.3M CCU
+	Wikipedia
+	en.wikipedia.org/wiki/Grow_a_Garden
+	Adopt Me 42.4B visits
+	Rolimons
+	rolimons.com/game/920587237
+	Pet Sim 99 $4-8M/month
+	Rolimons
+	rolimons.com/game/8737899170
+	Steal a Brainrot $556M lifetime
+	Profitable.app
+	profitable.app/roblox/games/steal-a-brainrot
+	Top 1,000 creators avg $1.3M in 2025
+	Roblox Creator Economy
+	create.roblox.com/landing
+	
+
+
+
+Grow a Dragona — GDD v1 — Confidential

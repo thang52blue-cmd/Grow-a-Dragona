@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Roblox MVP Transaction Rules - Grow a Dragon</title>
+<style>
+:root{--bg:#09101d;--panel:#11192b;--line:#2a3958;--text:#eef4ff;--muted:#9facc7;--blue:#79a8ff;--green:#69e2ad;--yellow:#ffd273;--red:#ff8c99;--purple:#b99cff;--code:#080d18}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--text);background:radial-gradient(circle at 92% 0%,rgba(78,113,196,.22),transparent 28%),linear-gradient(180deg,#09101d,#0d1425);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.65}a{color:inherit;text-decoration:none}code,pre{font-family:"Cascadia Code",Consolas,monospace}
+.layout{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}aside{position:sticky;top:0;height:100vh;overflow:auto;padding:24px 18px;border-right:1px solid var(--line);background:rgba(8,13,26,.93)}.brand{padding:18px;border-radius:18px;border:1px solid rgba(121,168,255,.28);background:linear-gradient(135deg,rgba(121,168,255,.18),rgba(105,226,173,.07));margin-bottom:18px}.brand h1{margin:0 0 6px;font-size:19px}.brand p{margin:0;color:var(--muted);font-size:13px}.nav-title{margin:18px 10px 8px;color:#7584a4;text-transform:uppercase;letter-spacing:.13em;font-size:11px;font-weight:800}nav a{display:block;padding:9px 11px;color:#bec9df;border-radius:10px;font-size:14px}nav a:hover{background:rgba(121,168,255,.12);color:#fff}
+main{width:min(1160px,100%);padding:38px clamp(22px,4vw,62px) 80px}.hero{padding:clamp(30px,5vw,56px);border-radius:28px;border:1px solid rgba(121,168,255,.25);background:linear-gradient(135deg,rgba(121,168,255,.22),rgba(105,226,173,.08)),var(--panel);margin-bottom:28px}.eyebrow{color:var(--green);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.16em}.hero h2{margin:10px 0 14px;font-size:clamp(36px,6vw,64px);line-height:1.03;letter-spacing:-.045em}.hero p{max-width:900px;color:#cad5eb;font-size:17px;margin:0}.formula{margin-top:22px;display:inline-flex;flex-wrap:wrap;gap:8px;padding:12px 14px;border-radius:12px;background:rgba(7,12,24,.42);border:1px solid var(--line);font-family:"Cascadia Code",Consolas,monospace;font-size:14px}
+section{scroll-margin-top:24px;margin-top:28px;padding:clamp(22px,4vw,34px);border-radius:18px;border:1px solid var(--line);background:rgba(17,25,43,.9)}section h2{margin:0 0 10px;font-size:clamp(25px,3vw,34px);letter-spacing:-.025em}section h3{margin-top:25px;margin-bottom:10px;font-size:19px}.subtitle{margin-top:0;color:var(--muted)}.grid{display:grid;gap:16px}.grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}.card{border-radius:15px;border:1px solid var(--line);background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.012));padding:18px}.card h3,.card h4{margin:0 0 8px}.card p{margin:0;color:#bdc8df}.flow,pre{overflow-x:auto;padding:20px;border-radius:15px;border:1px solid var(--line);background:var(--code);color:#dfe8ff;line-height:1.55}.flow{white-space:pre;font-family:"Cascadia Code",Consolas,monospace}pre{font-size:13px}
+table{width:100%;border-collapse:collapse;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:rgba(7,12,24,.34)}th,td{padding:13px 14px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{background:rgba(121,168,255,.08);color:#e4ebff;font-size:13px}td{color:#c1cce2;font-size:14px}tr:last-child td{border-bottom:0}.note{margin:14px 0;padding:15px 17px;border-radius:10px;border-left:4px solid var(--blue);background:rgba(121,168,255,.08);color:#d9e3f9}.warning{border-left-color:var(--yellow);background:rgba(255,210,115,.08)}.danger{border-left-color:var(--red);background:rgba(255,140,153,.08)}.success{border-left-color:var(--green);background:rgba(105,226,173,.08)}.atomic{border-left-color:var(--purple);background:rgba(185,156,255,.09)}
+.rule{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:start;padding:14px;border:1px solid var(--line);border-radius:13px;background:rgba(255,255,255,.02)}.rule-num{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:rgba(121,168,255,.12);font-weight:800}.rule strong{display:block;margin-bottom:3px}.rule span{color:var(--muted);font-size:14px}.phase{border-left:5px solid var(--green);padding:18px;border-radius:14px;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:rgba(105,226,173,.05)}.later{border-left-color:var(--yellow);background:rgba(255,210,115,.05)}.checklist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px}.check{padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.025);border:1px solid var(--line);color:#cbd6ec;font-size:14px}.footer{text-align:center;color:#7886a6;padding-top:34px;font-size:13px}.mobile-title{display:none}
+@media(max-width:980px){.layout{grid-template-columns:1fr}aside{display:none}main{padding-top:20px}.mobile-title{display:block;position:sticky;top:0;z-index:10;padding:12px 18px;background:rgba(8,13,26,.93);border-bottom:1px solid var(--line);font-weight:800}}@media(max-width:760px){.grid-2,.grid-3,.checklist{grid-template-columns:1fr}.hero h2{font-size:40px}th,td{padding:11px}}
+</style>
+</head>
+<body>
+<div class="mobile-title">Roblox MVP Transaction Rules</div>
+<div class="layout">
+<aside>
+<div class="brand"><h1>Grow a Dragon MVP</h1><p>Transaction rules tối thiểu cho phase prototype.</p></div>
+<div class="nav-title">MVP scope</div>
+<nav>
+<a href="#goal">1. Mục tiêu phase này</a>
+<a href="#rules">2. Rule tối thiểu</a>
+<a href="#flow">3. Flow transaction MVP</a>
+<a href="#modules">4. Module cần triển khai</a>
+</nav>
+<div class="nav-title">Game systems</div>
+<nav>
+<a href="#transactions">5. Transaction cần có</a>
+<a href="#atomic">6. Atomic Write Set</a>
+<a href="#persistence">7. Save và session</a>
+<a href="#security">8. Security tối thiểu</a>
+</nav>
+<div class="nav-title">Scope control</div>
+<nav>
+<a href="#later">9. Để phase sau</a>
+<a href="#implementation">10. Thứ tự triển khai</a>
+<a href="#testing">11. Test bắt buộc</a>
+<a href="#checklist">12. Definition of Done</a>
+</nav>
+</aside>
+
+<main>
+<header class="hero">
+<div class="eyebrow">MVP architecture</div>
+<h2>Transaction Rules Tối Thiểu</h2>
+<p>Bản kiến trúc rút gọn cho prototype Roblox. Chỉ giữ các phần cần thiết để core loop chạy ổn định, không mất dữ liệu, không duplicate item và không để client tự tạo Gold, Egg, Dragon hoặc reward.</p>
+<div class="formula">Server Authority + Player Queue + Atomic Commit + Safe Save</div>
+</header>
+
+<section id="goal">
+<h2>1. Mục tiêu của phase MVP</h2>
+<div class="grid grid-3">
+<div class="card"><h3>Core loop chạy được</h3><p>Buy Egg → Hatch → Feed → Adult → Produce → Collect → Sell.</p></div>
+<div class="card"><h3>Không lỗi economy cơ bản</h3><p>Không âm inventory, không double claim, không dùng một item hai lần.</p></div>
+<div class="card"><h3>Dễ mở rộng</h3><p>Không xây framework quá lớn nhưng vẫn có boundary rõ để thêm Display và Raid sau.</p></div>
+</div>
+<div class="note">MVP không cần chống mọi kiểu exploit nâng cao. Mục tiêu là loại bỏ những lỗ hổng nghiêm trọng nhất ngay từ data layer.</div>
+</section>
+
+<section id="rules">
+<h2>2. Các rule tối thiểu phải giữ</h2>
+<div class="grid grid-2">
+<div class="rule"><div class="rule-num">1</div><div><strong>Client chỉ gửi intent</strong><span>Client không gửi final price, reward, odds hoặc timer.</span></div></div>
+<div class="rule"><div class="rule-num">2</div><div><strong>Server là source of truth</strong><span>Ownership, currency, inventory và job state lấy từ server profile.</span></div></div>
+<div class="rule"><div class="rule-num">3</div><div><strong>Mọi persistent mutation đi qua transaction</strong><span>Không service nào tự sửa profile ngoài TransactionService.</span></div></div>
+<div class="rule"><div class="rule-num">4</div><div><strong>Mỗi player chỉ chạy một transaction tại một thời điểm</strong><span>Dùng per-player queue.</span></div></div>
+<div class="rule"><div class="rule-num">5</div><div><strong>Validate không mutate</strong><span>Chỉ kiểm tra request và current state.</span></div></div>
+<div class="rule"><div class="rule-num">6</div><div><strong>Stage không mutate</strong><span>Tính NewGold, NewAmount, NewJob trong local patch.</span></div></div>
+<div class="rule"><div class="rule-num">7</div><div><strong>Commit không yield</strong><span>Không task.wait, DataStore hoặc InvokeClient trong commit.</span></div></div>
+<div class="rule"><div class="rule-num">8</div><div><strong>Sau commit không rollback gameplay</strong><span>Mark dirty và save lại; không refund theo chuỗi thao tác ngược.</span></div></div>
+<div class="rule"><div class="rule-num">9</div><div><strong>Hatch result roll ở server</strong><span>Client chỉ hiển thị animation.</span></div></div>
+<div class="rule"><div class="rule-num">10</div><div><strong>Runtime Part không phải dữ liệu thật</strong><span>Inventory/Nest/HatchJob trong profile mới là source of truth.</span></div></div>
+</div>
+</section>
+
+<section id="flow">
+<h2>3. Flow transaction MVP</h2>
+<div class="flow">Client sends intent
+        │
+        ▼
+RemoteGateway
+├── Validate payload type/range
+├── Check profile loaded
+├── Basic rate limit
+└── Route action
+        │
+        ▼
+PerPlayerTransactionQueue
+        │
+        ▼
+Transaction Handler
+├── Validate ownership/state
+├── Stage local patch
+└── Commit Atomic Write Set
+        │
+        ▼
+DataService
+├── Revision += 1
+├── MarkDirty
+├── PrioritySave if important
+└── Autosave / leave save</div>
+<div class="note success">Đây là flow đủ dùng cho MVP. Chưa cần distributed lock, saga hoặc hệ thống anti-cheat phức tạp.</div>
+</section>
+
+<section id="modules">
+<h2>4. Các module cần triển khai trong phase này</h2>
+<div class="phase">
+<h3>Core bắt buộc</h3>
+<pre>Server
+├── Data
+│   ├── ProfileTemplate.lua
+│   ├── DataService.lua
+│   └── SaveScheduler.lua
+│
+├── Runtime
+│   └── PlayerRuntimeStore.lua
+│
+├── Transactions
+│   ├── TransactionService.lua
+│   ├── TransactionQueue.lua
+│   ├── TransactionType.lua
+│   └── TransactionCode.lua
+│
+└── Security
+    ├── PayloadValidator.lua
+    └── RateLimiter.lua</pre>
+</div>
+<table>
+<thead><tr><th>Module</th><th>Trách nhiệm</th></tr></thead>
+<tbody>
+<tr><td>ProfileTemplate</td><td>Định nghĩa cấu trúc dữ liệu mặc định.</td></tr>
+<tr><td>DataService</td><td>Load, giữ profile trong memory, mark dirty, save, release.</td></tr>
+<tr><td>SaveScheduler</td><td>Autosave, priority save, leave save, BindToClose.</td></tr>
+<tr><td>PlayerRuntimeStore</td><td>Queue, request cache, runtime indexes, IsClosing.</td></tr>
+<tr><td>TransactionService</td><td>Chạy Validate → Stage → Commit.</td></tr>
+<tr><td>TransactionQueue</td><td>Serialize transaction theo player.</td></tr>
+<tr><td>PayloadValidator</td><td>Kiểm tra type, integer, finite, range.</td></tr>
+<tr><td>RateLimiter</td><td>Chặn spam remote và queue overflow.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="transactions">
+<h2>5. Các transaction cần có trong MVP</h2>
+<table>
+<thead><tr><th>Ưu tiên</th><th>Transaction</th><th>Lý do</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>BuyEggTransaction</td><td>Core economy đầu vào.</td></tr>
+<tr><td>2</td><td>StartHatchTransaction</td><td>Consume egg và tạo persistent job.</td></tr>
+<tr><td>3</td><td>ClaimHatchTransaction</td><td>Tạo Dragon và chống double claim.</td></tr>
+<tr><td>4</td><td>FeedDragonTransaction</td><td>Consume food và tăng growth.</td></tr>
+<tr><td>5</td><td>CollectNestTransaction</td><td>Resolve production và chuyển egg vào inventory.</td></tr>
+<tr><td>6</td><td>SellProductionEggTransaction</td><td>Core economy đầu ra.</td></tr>
+</tbody>
+</table>
+<div class="note warning">Display, Raid, Trade và Marketplace chưa cần nằm trong MVP transaction set nếu core loop chưa ổn định.</div>
+</section>
+
+<section id="atomic">
+<h2>6. Atomic Write Set tối thiểu</h2>
+<h3>BuyEggTransaction</h3>
+<div class="flow">Gold -= TotalPrice
+HatchEgg += Amount
+Statistics.TotalGoldSpent += TotalPrice
+Revision += 1</div>
+<h3>StartHatchTransaction</h3>
+<div class="flow">HatchEgg -= 1
+Hatching.Slot.Job = NewHatchJob
+NextIds.HatchJob += 1
+Revision += 1</div>
+<h3>ClaimHatchTransaction</h3>
+<div class="flow">Dragons += NewDragon
+Hatching.Slot.Job = nil
+NextIds.Dragon += 1
+Revision += 1</div>
+<h3>FeedDragonTransaction</h3>
+<div class="flow">Food -= Amount
+Dragon.GrowthXP = NewGrowthXP
+
+if JustReachedAdult then
+    Dragon.ReachedAdultAt = TransactionTime
+    Production.Producers += NewProducer
+end
+
+Revision += 1</div>
+<h3>CollectNestTransaction</h3>
+<div class="flow">Resolve Production to TransactionTime
+Nest.Uncollected = empty
+Inventory.ProductionEggs += CollectedEggs
+Revision += 1</div>
+<h3>SellProductionEggTransaction</h3>
+<div class="flow">ProductionEgg -= Amount
+Gold += ServerCalculatedReward
+Revision += 1</div>
+<div class="note atomic">Nếu một action cần thay đổi nhiều system để giữ dữ liệu hợp lệ, các thay đổi đó phải nằm trong cùng commit.</div>
+</section>
+
+<section id="persistence">
+<h2>7. Persistence tối thiểu</h2>
+<div class="grid grid-2">
+<div class="card"><h3>Một profile key cho mỗi player</h3><p>Giữ currency, inventory, dragons, jobs và production trong cùng một profile object.</p></div>
+<div class="card"><h3>Một server sở hữu profile</h3><p>Không cho hai server cùng mutate profile một lúc.</p></div>
+</div>
+<table>
+<thead><tr><th>Action</th><th>Save mode</th></tr></thead>
+<tbody>
+<tr><td>Feed Dragon</td><td>Mark dirty, autosave.</td></tr>
+<tr><td>Collect Nest</td><td>Mark dirty, autosave.</td></tr>
+<tr><td>Buy Egg</td><td>Mark dirty hoặc priority save.</td></tr>
+<tr><td>Start Hatch</td><td>Priority save.</td></tr>
+<tr><td>Claim Hatch</td><td>Priority save.</td></tr>
+<tr><td>Player leave</td><td>Save latest committed revision.</td></tr>
+</tbody>
+</table>
+<div class="flow">Transaction commit
+→ Revision += 1
+→ MarkDirty
+→ SaveScheduler coalesces changes
+→ Save latest profile
+→ Never save older revision over newer revision</div>
+<div class="note danger">Không gọi DataStore save sau mỗi lần Feed. Cần autosave và gộp nhiều thay đổi để tránh throttling.</div>
+</section>
+
+<section id="security">
+<h2>8. Security tối thiểu cho MVP</h2>
+<table>
+<thead><tr><th>Lớp bảo vệ</th><th>Yêu cầu MVP</th></tr></thead>
+<tbody>
+<tr><td>Payload validation</td><td>Kiểm tra number, integer, finite, min/max.</td></tr>
+<tr><td>Ownership</td><td>Dragon, Egg, Nest, Slot phải thuộc player.</td></tr>
+<tr><td>State validation</td><td>Slot trống, job finished, Dragon đúng stage.</td></tr>
+<tr><td>Server calculations</td><td>Price, reward, hatch odds, production amount.</td></tr>
+<tr><td>Rate limit</td><td>Global per-player + giới hạn cho action nhạy cảm.</td></tr>
+<tr><td>Queue cap</td><td>Không cho queue tăng vô hạn.</td></tr>
+<tr><td>Request cache</td><td>Chống double click và retry trong session.</td></tr>
+<tr><td>Session ownership</td><td>Một profile chỉ có một server được ghi.</td></tr>
+</tbody>
+</table>
+<pre>Global:
+30 transaction requests / 5 seconds
+
+BuyEgg:
+5 requests / 2 seconds
+
+StartHatch:
+3 requests / 3 seconds
+
+ClaimHatch:
+3 requests / 3 seconds
+
+FeedDragon:
+10 requests / 2 seconds
+
+Queue maximum:
+20 pending requests / player</pre>
+</section>
+
+<section id="later">
+<h2>9. Các phần để phase sau</h2>
+<div class="phase later">
+<h3>Chưa cần triển khai trong MVP</h3>
+<ul>
+<li>Trade transaction giữa hai player.</li>
+<li>Marketplace global.</li>
+<li>Distributed locks qua MemoryStore.</li>
+<li>Guild inventory.</li>
+<li>Persistent receipt cho mọi action nhỏ.</li>
+<li>Suspicion score và auto-ban phức tạp.</li>
+<li>Parallel Luau hoặc Actor-based transaction processing.</li>
+<li>Durable save cho mọi transaction.</li>
+<li>Generic transaction DSL.</li>
+<li>Cross-server raid state.</li>
+</ul>
+</div>
+<div class="note warning">Chỉ thêm các phần trên khi feature thực sự tồn tại. Không xây trước một hệ thống phân tán cho core loop single-profile.</div>
+</section>
+
+<section id="implementation">
+<h2>10. Thứ tự triển khai đề xuất</h2>
+<table>
+<thead><tr><th>Bước</th><th>Việc cần làm</th><th>Kết quả</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>ProfileTemplate + DataService</td><td>Load/save được một profile hoàn chỉnh.</td></tr>
+<tr><td>2</td><td>PlayerRuntimeStore + TransactionQueue</td><td>Mỗi player có queue và IsClosing.</td></tr>
+<tr><td>3</td><td>PayloadValidator + RateLimiter</td><td>Remote không nhận payload bẩn/spam.</td></tr>
+<tr><td>4</td><td>TransactionService</td><td>Có pipeline Validate → Stage → Commit.</td></tr>
+<tr><td>5</td><td>BuyEggTransaction</td><td>Kiểm chứng economy transaction đầu tiên.</td></tr>
+<tr><td>6</td><td>StartHatch + ClaimHatch</td><td>Kiểm chứng persistent job và double claim.</td></tr>
+<tr><td>7</td><td>FeedDragon</td><td>Kiểm chứng inventory + entity mutation.</td></tr>
+<tr><td>8</td><td>CollectNest + SellEgg</td><td>Hoàn thành core loop.</td></tr>
+<tr><td>9</td><td>Autosave + Priority save + leave save</td><td>Ổn định persistence.</td></tr>
+<tr><td>10</td><td>Exploit tests</td><td>Kiểm tra spam, duplicate và reconnect.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="testing">
+<h2>11. Các test bắt buộc trước khi gọi là MVP ổn định</h2>
+<table>
+<thead><tr><th>Test</th><th>Kỳ vọng</th></tr></thead>
+<tbody>
+<tr><td>Gửi Amount âm, decimal, infinity, NaN</td><td>Reject, profile không đổi.</td></tr>
+<tr><td>Gửi DragonId/EggTypeId giả</td><td>Reject.</td></tr>
+<tr><td>Spam BuyEgg 100 lần</td><td>Rate limit và queue cap hoạt động.</td></tr>
+<tr><td>StartHatch và Sell cùng egg</td><td>Chỉ action đầu thành công.</td></tr>
+<tr><td>Claim Hatch hai lần</td><td>Chỉ tạo một Dragon.</td></tr>
+<tr><td>Disconnect sau StartHatch</td><td>HatchJob còn khi rejoin.</td></tr>
+<tr><td>Disconnect sau ClaimHatch</td><td>Dragon vẫn tồn tại sau save/rejoin.</td></tr>
+<tr><td>Feed Dragon khi không đủ Food</td><td>Reject, Growth không đổi.</td></tr>
+<tr><td>Collect Nest liên tục</td><td>Không collect cùng egg hai lần.</td></tr>
+<tr><td>Hai server load cùng player</td><td>Chỉ một server được quyền mutate.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="checklist">
+<h2>12. MVP Definition of Done</h2>
+<div class="checklist">
+<div class="check">☐ Client chỉ gửi intent</div>
+<div class="check">☐ Server tự tính price/reward/odds</div>
+<div class="check">☐ Có PayloadValidator</div>
+<div class="check">☐ Có RateLimiter và queue cap</div>
+<div class="check">☐ Mỗi player có transaction queue</div>
+<div class="check">☐ Validate và Stage không mutate profile</div>
+<div class="check">☐ Commit không yield</div>
+<div class="check">☐ Atomic Write Set đầy đủ</div>
+<div class="check">☐ Mỗi commit tăng Revision</div>
+<div class="check">☐ StartHatch consume egg + tạo job cùng commit</div>
+<div class="check">☐ ClaimHatch tạo Dragon + clear job cùng commit</div>
+<div class="check">☐ Không có inventory/currency âm</div>
+<div class="check">☐ Không double claim</div>
+<div class="check">☐ Runtime Part không phải source of truth</div>
+<div class="check">☐ Autosave và leave save hoạt động</div>
+<div class="check">☐ Start/Claim Hatch có priority save</div>
+<div class="check">☐ Một profile chỉ được một server sở hữu</div>
+<div class="check">☐ Các exploit tests chính đã pass</div>
+</div>
+</section>
+
+<div class="footer">Roblox MVP Transaction Rules - Grow a Dragon prototype guide</div>
+</main>
+</div>
+</body>
+</html>
