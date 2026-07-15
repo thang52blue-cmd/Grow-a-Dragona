@@ -1,0 +1,107 @@
+# System Patterns
+
+> On-demand load. Architecture, patterns, and API contracts. Update this file as transactions are
+> implemented — it should describe the repo as it actually is, not the aspiration.
+
+## Layering (README.md architecture table)
+
+| Path | Responsibility |
+|---|---|
+| `src/shared/Domain/` | pure growth, hatch, reward, production, and validation logic |
+| `src/shared/Data/` | prices, timings, odds, food values, production rates, bonuses |
+| `src/shared/Types/` | shared typed records and identifiers |
+| `src/server/Transactions/` | server-authoritative economy and progression transactions |
+| `src/server/Persistence/` | profile loading, session lock, save adapter, migrations |
+| `src/server/Services/` | **added 2026-07-14, not in the original README table** — thin server singletons (`CurrencyService`, `InventoryService`) that bind tested `src/shared/Domain/` functions to a player's live cached profile. Lower-level than `Transactions/`: a future `BuyEggTransaction` will likely call `CurrencyService.SpendGold` + `InventoryService.AddItem` as its Atomic Write Set, rather than duplicating that math itself. |
+| `src/server/Remotes/` | request parsing, rate limiting, sanitized responses |
+| `src/client/` | UI, input, animation, effects, and local presentation |
+
+`src/shared/` must never touch engine globals or do IO (AGENTS.md hard rule; no ADR written for this
+yet) so it can be proven by the fast Lune lane without Roblox Studio.
+
+## Rojo tree (`default.project.json`)
+
+```text
+ReplicatedStorage.Shared        ← src/shared
+ServerScriptService.Server      ← src/server
+StarterPlayer.StarterPlayerScripts.Client ← src/client
+```
+
+## Transaction model (README.md, AGENTS.md)
+
+Every valuable action is a single server-side flow:
+
+```text
+Validate request
+→ verify session lock
+→ read current snapshot
+→ check ownership, balance, state, cooldown, and idempotency
+→ build one Atomic Write Set
+→ commit once
+→ emit post-commit events
+→ return sanitized result
+```
+
+Clients never choose rewards, rarity, finish time, prices, sell values, or ownership.
+
+## Expected transaction modules (not yet implemented — see `src/server/Transactions/README.md`)
+
+```text
+Economy/BuyEggTransaction.luau
+Economy/SellProductionEggTransaction.luau
+Hatching/StartHatchTransaction.luau
+Hatching/ClaimHatchTransaction.luau
+Dragon/FeedDragonTransaction.luau
+Dragon/SetFavoriteTransaction.luau
+Production/AssignProducerTransaction.luau
+Production/CollectNestTransaction.luau
+Display/AssignDisplayTransaction.luau
+Display/RemoveDisplayTransaction.luau
+```
+
+## Data classification (README.md)
+
+- **Persistent**: Gold, owned eggs, dragons, food, hatch state, growth progress, production state,
+  uncollected output, display assignments, boosts, pending claims.
+- **Runtime**: models, animations, current targets, temporary cooldowns, remote connections, dirty
+  flags, caches, session-lock heartbeat state.
+- **Derived**: sell values, final hatch odds, production speed, quality bonuses, display synergy,
+  slot limits — always recalculated from authoritative inputs + `src/shared/Data/`, never saved.
+
+## Shared vocabulary fixed by the GDD (`Doc/Grow_a_Dragona_GDD.txt`)
+
+- `Types.Element`: `"Fire" | "Water" | "Earth" | "Light" | "Dark"` (see `src/shared/Types/Types.luau`).
+- `Types.Rarity`: `"Common" | "Rare" | "Epic" | "Legendary" | "Mythic"`.
+- `Types.EggVariant`: `"Normal" | "Mini" | "Heavy" | "Giant" | "Golden"` — production-egg sell-value
+  multiplier, distinct from hatching-egg tier/rarity. Do not conflate the two egg concepts; see
+  `memory-bank/CONTEXT.md`.
+
+## Session lock (implemented 2026-07-14)
+
+`src/shared/Domain/SessionLock.luau` is the pure decision function:
+`canClaim(existingSession: Types.Session, jobId: string, now: number, timeoutSeconds: number): boolean`.
+Same-server reclaim always succeeds; a different server is blocked until `now - existingSession.updatedAt >= timeoutSeconds`.
+`src/server/Persistence/DataService.luau` calls this on every `Load` before caching a profile, using
+`game.JobId` and `os.time()`. The lock is stored at `profile.meta.session` and persisted with the
+profile itself. **Not yet hardened** against a true concurrent-write race (see
+`memory-bank/progress.md` "Known gaps" — `DataService.Save` uses `SetAsync`, last-write-wins, not a
+compare-and-swap `UpdateAsync`); that's backlog item 9's job.
+
+## Test-harness remote contract (`ReplicatedStorage.Remotes`, implemented 2026-07-14)
+
+Created at runtime by `src/server/Remotes/RemotesSetup.luau` (code-first, no `.model.json`). Five
+`RemoteEvent`s, all **intent-only** payloads per AGENTS.md's remote-payload rule — the client never
+sends an amount, the server decides it:
+
+```text
+AddTestGold    (client → server, no payload)  — server adds a fixed test amount via CurrencyService
+SpendTestGold  (client → server, no payload)  — server spends a fixed test amount via CurrencyService
+AddTestFood    (client → server, no payload)  — server adds a fixed test item/qty via InventoryService
+RemoveTestFood (client → server, no payload)  — server removes a fixed test item/qty via InventoryService
+ProfileUpdated (server → client, {gold: number, inventory: {[string]: number}, lastError: string?})
+```
+
+This is scaffolding for manual Studio testing, not a real gameplay remote contract — expect it to be
+replaced once `BuyEggTransaction`/etc. define the real ones (backlog item 2+).
+
+No other API contracts (remote names/payload shapes) are committed yet.

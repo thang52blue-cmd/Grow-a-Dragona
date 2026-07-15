@@ -1,0 +1,55 @@
+# Backlog
+
+> Always load. Ordered by priority — pick the top item unless told otherwise. Numbering is stable;
+> `AGENTS.md`'s gated-actions section and `ci/run-tests.sh` already reference item **#3** by number
+> (engine-lane activation) — don't renumber without updating those references too.
+
+1. ~~**Profile schema, validation, and session lock**~~ — **DONE 2026-07-14**
+   DoD met: `src/shared/Domain/ProfileSchema.spec.luau` proves validation rejects malformed/missing
+   fields; `src/shared/Domain/SessionLock.spec.luau` proves a same-server reclaim succeeds, a
+   different server is blocked while the lock is fresh, and it can claim once the lock expires.
+   `ci/run-tests.sh fast` → real `PASSED` (4 specs). Session lock enforcement itself is wired into
+   `src/server/Persistence/DataService.luau` (engine glue, not Lune-testable — see
+   `memory-bank/progress.md` for what's verified there vs. what still needs a manual Studio pass).
+
+2. **Buy Egg transaction**
+   DoD: spec proves Gold deduction and egg grant commit atomically (never one without the other);
+   spec proves a duplicate request ID cannot double-grant. `ci/run-tests.sh fast` → `PASSED`.
+   Partially unblocked already: `CurrencyService.SpendGold` and `InventoryService.AddItem` (built
+   2026-07-14 as today's MVP test-harness work) are the safe primitives this transaction will call —
+   what's still missing is the egg-price lookup against `EggConfig.json`, the actual
+   `BuyEggTransaction.luau` module, and its own spec.
+
+3. **Engine-lane activation ADR**
+   DoD: an ADR under `adr/` that states the trigger/scope for turning on `ci/run-tests.sh engine`
+   and Studio-based verification, approved by the human. Until this lands, the engine lane stays
+   `NO_TESTS` by design (see `ci/run-tests.sh`).
+
+4. **Start Hatch and Claim Hatch transactions**
+   DoD: spec proves the hatch finish time is a server timestamp, never client-supplied; spec proves
+   Claim grants exactly one dragon and consumes hatch state in the same commit; spec proves a
+   duplicate claim cannot double-grant.
+
+5. **Feed Dragon and growth calculation**
+   DoD: spec proves growth rate differs correctly for correct-element vs. wrong/no food; spec proves
+   Baby→Adult only triggers at the defined threshold, not before.
+
+6. **Assign Producer and Collect Nest transactions**
+   DoD: spec proves only Adult dragons can be assigned to produce; spec proves Collect advances the
+   production cycle and grants output atomically.
+
+7. **Sell Production Egg transaction**
+   DoD: spec proves inventory removal and Gold grant commit atomically; spec proves the Egg Variant
+   multiplier (GDD §4.2) is applied server-side and never trusted from the client.
+
+8. **Display assignment and one simple synergy bonus**
+   DoD: spec proves a 2-same-element synergy bonus (GDD §3.4) applies only while both dragons stay
+   displayed, and that the bonus is recalculated (derived), never persisted as a stored number.
+
+9. **Save recovery, duplicate-request, and disconnect tests**
+   DoD: spec proves a disconnect mid-transaction leaves the profile at either the pre- or post-commit
+   snapshot, never a partial state; a duplicate-request-ID spec exists for every transaction above.
+
+Backlog seeded 2026-07-14 from `README.md`'s "Recommended first MVP slices" (items 1-2 and 4-9 map
+1:1 to README's list 1-8; item 3 is new, inserted to match the `(backlog #3)` references already
+written into `AGENTS.md`).

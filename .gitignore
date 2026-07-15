@@ -1,0 +1,4 @@
+*.rbxl
+*.rbxlx
+sourcemap.json
+.ci-cache/

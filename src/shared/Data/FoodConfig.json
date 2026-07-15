@@ -1,0 +1,7 @@
+{
+  "Fire": ["ChiliPepper", "HotSauce", "FireBerry"],
+  "Water": ["Fish", "Seaweed", "PearlClam"],
+  "Earth": ["Mushroom", "Root", "MagicalHerb"],
+  "Light": ["MagicalCandy", "Honey", "StarSugar"],
+  "Dark": ["Lemon", "VinegarBerry", "DarkCrystal"]
+}

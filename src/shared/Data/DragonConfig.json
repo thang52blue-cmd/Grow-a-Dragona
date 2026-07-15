@@ -1,0 +1,16 @@
+{
+  "elements": {
+    "Fire": { "foodType": "Spicy", "synergyType": "GoldBonus" },
+    "Water": { "foodType": "Seafood", "synergyType": "ProductionSpeed" },
+    "Earth": { "foodType": "Plants", "synergyType": "QualityChance" },
+    "Light": { "foodType": "Sweets", "synergyType": "GachaLuck" },
+    "Dark": { "foodType": "SourAcid", "synergyType": "RaidDefense" }
+  },
+  "rarities": {
+    "Common": { "productionMultiplier": 1 },
+    "Rare": { "productionMultiplier": 3 },
+    "Epic": { "productionMultiplier": 8 },
+    "Legendary": { "productionMultiplier": 25 },
+    "Mythic": { "productionMultiplier": 100 }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "hatchingTiers": {
+    "Common": {
+      "goldPrice": 10,
+      "odds": { "Common": 0.99, "Rare": 0.01, "Epic": 0, "Legendary": 0, "Mythic": 0 }
+    },
+    "Rare": {
+      "goldPrice": 50,
+      "odds": { "Common": 0, "Rare": 0.94, "Epic": 0.059, "Legendary": 0.001, "Mythic": 0 }
+    },
+    "Epic": {
+      "goldPrice": 250,
+      "odds": { "Common": 0, "Rare": 0, "Epic": 0.89, "Legendary": 0.109, "Mythic": 0.001 }
+    },
+    "Legendary": {
+      "goldPrice": 2000,
+      "odds": { "Common": 0, "Rare": 0, "Epic": 0, "Legendary": 0.94, "Mythic": 0.06 }
+    },
+    "Mythic": {
+      "goldPrice": 20000,
+      "odds": { "Common": 0, "Rare": 0, "Epic": 0, "Legendary": 0, "Mythic": 1.0 }
+    }
+  },
+  "productionVariants": {
+    "Normal": { "goldMultiplier": 1.0 },
+    "Mini": { "goldMultiplier": 0.7 },
+    "Heavy": { "goldMultiplier": 2.0 },
+    "Giant": { "goldMultiplier": 3.0 },
+    "Golden": { "goldMultiplier": 5.0 }
+  }
+}
