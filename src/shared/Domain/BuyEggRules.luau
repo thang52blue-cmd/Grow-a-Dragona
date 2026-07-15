@@ -6,25 +6,12 @@ local Types = require("../Types/Types")
 local Currency = require("./Currency")
 local Inventory = require("./Inventory")
 local PayloadValidator = require("./PayloadValidator")
+local Rarities = require("./Rarities")
 local TransactionCode = require("./TransactionCode")
 
 -- Hard ceiling independent of any single tier's own maxPurchaseAmount -- keeps one request from
 -- ever requesting an absurd Amount even if a tier config is misconfigured.
 local HARD_MAX_AMOUNT = 100
-
-local RARITIES: { Types.Rarity } = { "Common", "Rare", "Epic", "Legendary", "Mythic" }
-
-local function isValidRarity(value: unknown): boolean
-	if type(value) ~= "string" then
-		return false
-	end
-	for _, rarity in RARITIES do
-		if rarity == value then
-			return true
-		end
-	end
-	return false
-end
 
 local function hatchEggItemId(rarity: string): string
 	return "HatchEgg_" .. rarity
@@ -53,7 +40,7 @@ function BuyEggRules.Validate(eggConfig: Types.EggConfig, payload: unknown): (bo
 	end
 	local rawPayload = payload :: { [string]: any }
 
-	if not isValidRarity(rawPayload.Rarity) then
+	if not Rarities.IsValid(rawPayload.Rarity) then
 		return false, TransactionCode.InvalidEggType
 	end
 

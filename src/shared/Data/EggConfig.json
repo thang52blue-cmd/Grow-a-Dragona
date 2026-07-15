@@ -4,31 +4,36 @@
       "goldPrice": 10,
       "odds": { "Common": 0.99, "Rare": 0.01, "Epic": 0, "Legendary": 0, "Mythic": 0 },
       "enabled": true,
-      "maxPurchaseAmount": 50
+      "maxPurchaseAmount": 50,
+      "hatchDurationSeconds": 5
     },
     "Rare": {
       "goldPrice": 50,
       "odds": { "Common": 0, "Rare": 0.94, "Epic": 0.059, "Legendary": 0.001, "Mythic": 0 },
       "enabled": true,
-      "maxPurchaseAmount": 20
+      "maxPurchaseAmount": 20,
+      "hatchDurationSeconds": 30
     },
     "Epic": {
       "goldPrice": 250,
       "odds": { "Common": 0, "Rare": 0, "Epic": 0.89, "Legendary": 0.109, "Mythic": 0.001 },
       "enabled": true,
-      "maxPurchaseAmount": 10
+      "maxPurchaseAmount": 10,
+      "hatchDurationSeconds": 120
     },
     "Legendary": {
       "goldPrice": 2000,
       "odds": { "Common": 0, "Rare": 0, "Epic": 0, "Legendary": 0.94, "Mythic": 0.06 },
       "enabled": true,
-      "maxPurchaseAmount": 5
+      "maxPurchaseAmount": 5,
+      "hatchDurationSeconds": 600
     },
     "Mythic": {
       "goldPrice": 20000,
       "odds": { "Common": 0, "Rare": 0, "Epic": 0, "Legendary": 0, "Mythic": 1.0 },
       "enabled": true,
-      "maxPurchaseAmount": 2
+      "maxPurchaseAmount": 2,
+      "hatchDurationSeconds": 1800
     }
   },
   "productionVariants": {

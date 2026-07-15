@@ -11,6 +11,7 @@ export type HatchingTierConfig = {
 	odds: EggOdds,
 	enabled: boolean,
 	maxPurchaseAmount: number,
+	hatchDurationSeconds: number,
 }
 
 export type EggConfig = {
@@ -42,6 +43,30 @@ export type EconomyConfig = {
 
 export type Inventory = { [string]: number }
 
+-- Plain X/Y/Z, not a Vector3 -- src/shared/ must stay engine-global-free (AGENTS.md hard
+-- rule) and this needs to round-trip through the pure ProfileSchema validator and Lune
+-- specs. Engine-glue code (HatchSpawner, init.server) converts to/from Vector3 at the
+-- boundary.
+export type Position = {
+	X: number,
+	Y: number,
+	Z: number,
+}
+
+export type PendingHatch = {
+	Id: string,
+	Rarity: Rarity,
+	StartedAt: number,
+	FinishAt: number,
+	Position: Position,
+}
+
+export type DragonRecord = {
+	Id: string,
+	Rarity: Rarity,
+	HatchedAt: number,
+}
+
 export type Session = {
 	jobId: string?,
 	updatedAt: number,
@@ -50,11 +75,15 @@ export type Session = {
 export type ProfileMeta = {
 	schemaVersion: number,
 	session: Session,
+	nextEntityId: number,
 }
 
 export type Profile = {
 	gold: number,
 	inventory: Inventory,
+	pendingHatches: { [string]: PendingHatch },
+	dragons: { [string]: DragonRecord },
+	lastPosition: Position?,
 	meta: ProfileMeta,
 }
 

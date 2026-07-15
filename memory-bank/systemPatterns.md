@@ -87,8 +87,8 @@ Roblox engine) — exactly why a live Studio pass matters for this layer.
 ```text
 Economy/BuyEggTransaction.luau            -- DONE 2026-07-15 (backlog item 2)
 Economy/SellProductionEggTransaction.luau
-Hatching/StartHatchTransaction.luau
-Hatching/ClaimHatchTransaction.luau
+Hatching/StartHatchTransaction.luau       -- DONE 2026-07-16 (backlog item 4)
+Hatching/ClaimHatchTransaction.luau       -- DONE 2026-07-16 (backlog item 4)
 Dragon/FeedDragonTransaction.luau
 Dragon/SetFavoriteTransaction.luau
 Production/AssignProducerTransaction.luau
@@ -96,6 +96,36 @@ Production/CollectNestTransaction.luau
 Display/AssignDisplayTransaction.luau
 Display/RemoveDisplayTransaction.luau
 ```
+
+## Hatch flow (implemented 2026-07-16, backlog item 4)
+
+`StartHatch`/`ClaimHatch` follow the same thin-adapter convention as `BuyEgg`
+(`src/server/Transactions/Hatching/*Transaction.luau` → pure
+`src/shared/Domain/{StartHatch,ClaimHatch}Rules.luau`). See
+`adr/ADR-002-hatch-state-and-dragon-schema.md` for the full decision record; summary:
+
+- `profile.pendingHatches: {[string]: PendingHatch}` and `profile.dragons: {[string]:
+  DragonRecord}` are both keyed by ids minted from `profile.meta.nextEntityId` (a shared
+  counter) — never by the client-supplied `requestId`, which isn't safe as a persisted
+  key across sessions.
+- Multiple hatches run concurrently per player; each has its own server-computed
+  `FinishAt`. `EggConfig.hatchingTiers.*.hatchDurationSeconds` holds the per-tier
+  duration (placeholder values, not yet balanced).
+- The hatching egg is a real `Workspace.HatchingEggs.<UserId>.<hatchId>` model
+  (`src/server/Services/HatchSpawner.luau`), visible to every client, tagged
+  `"HatchingEgg"` via `CollectionService` with `FinishAt`/`Rarity` attributes.
+  `src/client/Hatch/HatchCountdownController.luau` renders the countdown from those
+  attributes on every client that can see it; nothing about the countdown is
+  authoritative, it's pure display.
+- `src/client/Hatch/AutoClaimController.luau` auto-fires `ClaimHatch` once a pending
+  hatch's `FinishAt` passes; `ClaimHatchRules.Stage` re-checks the server's own clock
+  regardless, so this is a convenience trigger, not a trust boundary.
+- Dragon rarity is rolled via the new pure `src/shared/Domain/WeightedRoll.luau` against
+  the *hatched egg's own* `EggConfig.hatchingTiers[rarity].odds` — no new probability
+  table. `DragonRecord` has no `Element` yet (no odds exist for it in
+  `DragonConfig.json`) — a follow-up before backlog item 5 needs it.
+- `src/shared/Domain/Rarities.luau` (`.List` + `.IsValid`) is the shared rarity
+  list/validator now used by `BuyEggRules`, `StartHatchRules`, and `ProfileSchema`.
 
 ## Data classification (README.md)
 

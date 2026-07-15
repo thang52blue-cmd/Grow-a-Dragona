@@ -2,9 +2,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local REMOTE_EVENT_NAMES = {
 	"AddTestGold",
+	"AddTestGold10000",
 	"SpendTestGold",
-	"AddTestFood",
-	"RemoveTestFood",
 	"ProfileUpdated",
 }
 

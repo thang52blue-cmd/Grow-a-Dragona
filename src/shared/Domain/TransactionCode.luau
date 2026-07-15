@@ -18,6 +18,10 @@ local TransactionCode = {
 	NotEnoughCurrency = 21,
 	InventoryFull = 22,
 
+	NoEggToHatch = 30,
+	NoHatchInProgress = 31,
+	HatchNotReady = 32,
+
 	InternalError = 100,
 }
 

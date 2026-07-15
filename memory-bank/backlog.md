@@ -34,10 +34,24 @@
    and Studio-based verification, approved by the human. Until this lands, the engine lane stays
    `NO_TESTS` by design (see `ci/run-tests.sh`).
 
-4. **Start Hatch and Claim Hatch transactions**
-   DoD: spec proves the hatch finish time is a server timestamp, never client-supplied; spec proves
-   Claim grants exactly one dragon and consumes hatch state in the same commit; spec proves a
-   duplicate claim cannot double-grant.
+4. ~~**Start Hatch and Claim Hatch transactions**~~ — **DONE 2026-07-16**
+   DoD met: `src/shared/Domain/StartHatchRules.spec.luau` + `ClaimHatchRules.spec.luau` prove
+   `FinishAt` is derived from the injected server `now` (never client-supplied), Claim grants
+   exactly one dragon and consumes the pending hatch in the same commit, and a second claim of an
+   already-claimed `HatchId` fails `NoHatchInProgress` (no double-grant). `ci/run-tests.sh fast` →
+   `PASSED` (12 specs). Scope grew beyond the original DoD per user request (see
+   `adr/ADR-002-hatch-state-and-dragon-schema.md`): multiple concurrent hatches per player (not a
+   single slot), a world-visible (all-clients) hatching-egg model with a live countdown
+   (`src/server/Services/HatchSpawner.luau` + `src/client/Hatch/HatchCountdownController.luau`),
+   and client-triggered/server-revalidated auto-claim (`src/client/Hatch/AutoClaimController.luau`).
+   Live-verified in Studio via MCP: 3 concurrent hatches (2 Common + 1 Rare) tracked independently
+   and auto-claimed correctly; a Legendary hatch claimed before `FinishAt` was rejected with
+   `HatchNotReady` (code 32); the hatching egg is a genuine `Workspace` descendant (not
+   `PlayerGui`-scoped); stopping and restarting Play mid-hatch left the pending hatch and its
+   remaining time intact and respawned its egg. `hatchDurationSeconds` values in `EggConfig.json`
+   are placeholders (Common=5s per explicit test request) pending real balancing. Dragon `Element`
+   is not yet rolled (no probability weights exist in `DragonConfig.json`) — flagged as a follow-up,
+   blocks backlog item 5 wherever it needs `Element`.
 
 5. **Feed Dragon and growth calculation**
    DoD: spec proves growth rate differs correctly for correct-element vs. wrong/no food; spec proves
