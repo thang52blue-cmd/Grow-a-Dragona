@@ -12,13 +12,22 @@
    `src/server/Persistence/DataService.luau` (engine glue, not Lune-testable — see
    `memory-bank/progress.md` for what's verified there vs. what still needs a manual Studio pass).
 
-2. **Buy Egg transaction**
-   DoD: spec proves Gold deduction and egg grant commit atomically (never one without the other);
-   spec proves a duplicate request ID cannot double-grant. `ci/run-tests.sh fast` → `PASSED`.
-   Partially unblocked already: `CurrencyService.SpendGold` and `InventoryService.AddItem` (built
-   2026-07-14 as today's MVP test-harness work) are the safe primitives this transaction will call —
-   what's still missing is the egg-price lookup against `EggConfig.json`, the actual
-   `BuyEggTransaction.luau` module, and its own spec.
+2. ~~**Buy Egg transaction**~~ — **DONE 2026-07-15**
+   DoD met: `src/shared/Domain/BuyEggRules.spec.luau` proves Gold deduction and egg grant commit
+   atomically (never one without the other), and proves insufficient-gold/malformed-payload/
+   disabled-tier/over-cap requests are all rejected without touching the profile.
+   Duplicate-request-ID protection is `PlayerRuntimeStore`'s `RequestCache` (runtime-only, per
+   AGENTS.md §3.7) — live-verified in Studio (resending the same RequestId returned the identical
+   cached result without a second charge); this dedupe layer isn't itself Lune-testable since it's
+   keyed to a live `TransactionService.Submit` call, but `RequestCache.spec.luau` proves its
+   eviction/lookup mechanics in isolation. `ci/run-tests.sh fast` → `PASSED` (12 specs). Also
+   built, as reusable infrastructure for every future transaction: `TransactionType`/
+   `TransactionCode`/`PayloadValidator`/`RateLimiter` (all pure + spec'd),
+   `PlayerRuntimeStore`/`TransactionQueue`/`TransactionService` (engine glue, live-verified in
+   Studio via MCP — see `memory-bank/progress.md` for the concurrency bug this surfaced and fixed).
+   See `memory-bank/handoff.md`'s 2026-07-15 entry for where this deliberately deviated from the
+   user-supplied plan doc (no profile schema change; `Rarity` string reused instead of a new
+   numeric `EggTypeId`).
 
 3. **Engine-lane activation ADR**
    DoD: an ADR under `adr/` that states the trigger/scope for turning on `ci/run-tests.sh engine`

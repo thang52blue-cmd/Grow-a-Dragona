@@ -44,10 +44,48 @@ Validate request
 
 Clients never choose rewards, rarity, finish time, prices, sell values, or ownership.
 
-## Expected transaction modules (not yet implemented — see `src/server/Transactions/README.md`)
+## Transaction framework (implemented 2026-07-15, backlog item 2)
+
+Every transaction handler is registered with `TransactionService.RegisterHandler(typeId, handler)`
+(ids in `src/shared/Domain/TransactionType.luau`) and implements three functions, called in order
+by `TransactionService.Submit(player, requestId, typeId, payload)`:
+
+```lua
+handler.Validate(context, payload): (boolean, code: number?)  -- read-only, no profile mutation
+handler.Stage(context, payload): (boolean, code: number?)     -- computes context.Staged, no mutation
+handler.Commit(context): ()                                   -- the only step allowed to mutate profile
+```
+
+`Submit`'s full flow: check `PlayerRuntimeStore` exists and isn't closing → return a cached
+`RequestCache` result on a duplicate `requestId` → check the global (30/5s) and per-type rate
+limit (`RateLimiter.tryConsume`, both pure) → run inside `TransactionQueue.Run` (per-player FIFO,
+`MAX_QUEUE_SIZE = 20`) → build `context` (`Player`, `Profile`, `Runtime`, `RequestId`, `TypeId`,
+`TransactionTime`, `Staged = {}`, `ResultData = {}`) → Validate → Stage → Commit → bump
+`runtime.Revision` → cache the `TransactionResult` in `RequestCache` → return it.
+
+**Convention per transaction type going forward:** put the actual Validate/Stage/Commit math in a
+pure `src/shared/Domain/<Name>Rules.luau` module (no engine globals, has its own `.spec.luau` —
+this is what actually proves atomicity/edge-cases per AGENTS.md's hard rule that pure logic lives
+in `src/shared/`) and keep the `src/server/Transactions/<Category>/<Name>Transaction.luau` handler
+as a thin adapter that supplies server-only config (`ReplicatedStorage.Shared.Data.*`) and calls
+into the Rules module. See `BuyEggTransaction.luau` + `BuyEggRules.luau` as the reference pair.
+
+`Revision` and the duplicate-request cache are **runtime-only** (`PlayerRuntimeStore`, keyed by
+`player.UserId`, never persisted) — deliberately not added to `Types.Profile`/`ProfileSchema.luau`
+to avoid AGENTS.md's save-schema-change gate; see `memory-bank/handoff.md`'s 2026-07-15 entry.
+
+**Known engine-glue caveat (found live via Studio MCP, fixed):** `TransactionQueue.Run` captures
+`coroutine.running()` and expects to `coroutine.yield()` before any queued job tries to resume
+that thread. The initial queue-processing kick must go through `task.defer`, not a direct call or
+`task.spawn` — `task.spawn` runs immediately/synchronously, which can try to resume the caller's
+thread before it has actually yielded, and Roblox errors with "cannot spawn non-suspended coroutine
+with arguments". This isn't Lune-testable (task-scheduler timing only shows up against the real
+Roblox engine) — exactly why a live Studio pass matters for this layer.
+
+## Expected transaction modules (see `src/server/Transactions/README.md`)
 
 ```text
-Economy/BuyEggTransaction.luau
+Economy/BuyEggTransaction.luau            -- DONE 2026-07-15 (backlog item 2)
 Economy/SellProductionEggTransaction.luau
 Hatching/StartHatchTransaction.luau
 Hatching/ClaimHatchTransaction.luau
@@ -101,7 +139,20 @@ RemoveTestFood (client → server, no payload)  — server removes a fixed test 
 ProfileUpdated (server → client, {gold: number, inventory: {[string]: number}, lastError: string?})
 ```
 
-This is scaffolding for manual Studio testing, not a real gameplay remote contract — expect it to be
-replaced once `BuyEggTransaction`/etc. define the real ones (backlog item 2+).
+This is scaffolding for manual Studio testing, not a real gameplay remote contract.
+
+**Added 2026-07-15 (backlog item 2) — the first real transaction contract:**
+
+```text
+Transaction (RemoteFunction, client → server: requestId: number, typeId: number, payload: table)
+            (server → client: Types.TransactionResult = {Success, Code, Revision?, Data?})
+```
+
+A `RemoteFunction`, not an event, since the caller needs the result synchronously (server-side
+`TransactionService.Submit` does the enqueue/Validate/Stage/Commit and returns the result directly
+from `OnServerInvoke`). `payload` is intent-only per AGENTS.md §3.1 — for `BuyEgg`:
+`{Rarity: string, Amount: number}`; the server looks up price/limits from `EggConfig.json` itself,
+never trusting a client-sent price. This is the pattern future transaction types should follow,
+not another ad-hoc `RemoteEvent` pair like the test-harness ones above.
 
 No other API contracts (remote names/payload shapes) are committed yet.

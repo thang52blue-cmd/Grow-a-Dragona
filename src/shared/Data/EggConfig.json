@@ -2,23 +2,33 @@
   "hatchingTiers": {
     "Common": {
       "goldPrice": 10,
-      "odds": { "Common": 0.99, "Rare": 0.01, "Epic": 0, "Legendary": 0, "Mythic": 0 }
+      "odds": { "Common": 0.99, "Rare": 0.01, "Epic": 0, "Legendary": 0, "Mythic": 0 },
+      "enabled": true,
+      "maxPurchaseAmount": 50
     },
     "Rare": {
       "goldPrice": 50,
-      "odds": { "Common": 0, "Rare": 0.94, "Epic": 0.059, "Legendary": 0.001, "Mythic": 0 }
+      "odds": { "Common": 0, "Rare": 0.94, "Epic": 0.059, "Legendary": 0.001, "Mythic": 0 },
+      "enabled": true,
+      "maxPurchaseAmount": 20
     },
     "Epic": {
       "goldPrice": 250,
-      "odds": { "Common": 0, "Rare": 0, "Epic": 0.89, "Legendary": 0.109, "Mythic": 0.001 }
+      "odds": { "Common": 0, "Rare": 0, "Epic": 0.89, "Legendary": 0.109, "Mythic": 0.001 },
+      "enabled": true,
+      "maxPurchaseAmount": 10
     },
     "Legendary": {
       "goldPrice": 2000,
-      "odds": { "Common": 0, "Rare": 0, "Epic": 0, "Legendary": 0.94, "Mythic": 0.06 }
+      "odds": { "Common": 0, "Rare": 0, "Epic": 0, "Legendary": 0.94, "Mythic": 0.06 },
+      "enabled": true,
+      "maxPurchaseAmount": 5
     },
     "Mythic": {
       "goldPrice": 20000,
-      "odds": { "Common": 0, "Rare": 0, "Epic": 0, "Legendary": 0, "Mythic": 1.0 }
+      "odds": { "Common": 0, "Rare": 0, "Epic": 0, "Legendary": 0, "Mythic": 1.0 },
+      "enabled": true,
+      "maxPurchaseAmount": 2
     }
   },
   "productionVariants": {

@@ -9,6 +9,8 @@ export type EggOdds = { [Rarity]: number }
 export type HatchingTierConfig = {
 	goldPrice: number,
 	odds: EggOdds,
+	enabled: boolean,
+	maxPurchaseAmount: number,
 }
 
 export type EggConfig = {
@@ -54,6 +56,13 @@ export type Profile = {
 	gold: number,
 	inventory: Inventory,
 	meta: ProfileMeta,
+}
+
+export type TransactionResult = {
+	Success: boolean,
+	Code: number,
+	Revision: number?,
+	Data: { [string]: any }?,
 }
 
 return {}

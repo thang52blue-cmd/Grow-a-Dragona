@@ -9,7 +9,10 @@ Never hardcode these values in logic; require the file instead.
 - `EggConfig.json` — `hatchingTiers` (gold price + rarity odds per hatching-egg tier) and
   `productionVariants` (sell-value multiplier per production-egg variant) are transcribed verbatim
   from the GDD (`Doc/Grow_a_Dragona_GDD.txt` §4.2-§4.3). These are real design values, not
-  placeholders.
+  placeholders. **Added 2026-07-15** for `BuyEggTransaction` (backlog item 2): each
+  `hatchingTiers` entry also has `enabled` and `maxPurchaseAmount` — these two fields are
+  engineering placeholders (not GDD-sourced), needed so the transaction has a per-tier on/off
+  switch and a single-request purchase cap; adjust once real balancing lands.
 - `DragonConfig.json` — `elements` (food category + synergy type per element) and `rarities`
   (production multiplier per rarity) are transcribed from GDD §3.1-§3.2. Real design values.
 - `FoodConfig.json` — the food-item catalog per element is transcribed from GDD §3.1's literal
