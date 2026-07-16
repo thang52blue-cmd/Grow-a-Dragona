@@ -35,9 +35,9 @@ smoke-tested):
     decimal/`math.huge`/NaN/over-max amount, unknown rarity, wrong type) are all rejected without
     touching the profile; a disabled tier and an over-`maxPurchaseAmount` request are both
     rejected; `Stage` itself never mutates the profile (only `Commit` does).
-- **Added 2026-07-16 (backlog item 5, Feed Dragon — Rules/Transaction layer only, see
-  `memory-bank/backlog.md` item 5 for what's still pending):** `ci/run-tests.sh fast` → real
-  `PASSED`, 14 specs (up from 12):
+- **Added 2026-07-16 (backlog item 5, Feed Dragon — Rules/Transaction layer, live-verified; see
+  `memory-bank/backlog.md` item 5 for what's still pending, i.e. Phase B world-presence):**
+  `ci/run-tests.sh fast` → real `PASSED`, 14 specs (up from 12):
   - `Elements.luau` — fixed-order List/IsValid over the 5 elements, mirrors `Rarities.luau`.
   - `WeightedRoll.luau` — generalized from Rarity-only to `(orderedKeys, odds, rollValue)` so the
     same cumulative-bucket algorithm now also rolls Element; all existing call sites updated, no
@@ -55,6 +55,14 @@ smoke-tested):
     to Fire/Baby_0/0, not rejected).
   See `adr/ADR-003-feed-dragon-schema.md` for the full decision record (why Food reuses the
   generic `Profile.inventory` instead of a new bucket, why `AssignedSlotId` is deferred).
+  **Live-verified in Studio Play mode via the Roblox Studio MCP, 2026-07-16**, real client
+  `Transaction:InvokeServer` calls (not a mocked path): Buy→Hatch→auto-Claim→Feed×4 on a freshly-
+  hatched Common/Earth dragon consumed exactly one `Mushroom` per Feed, advanced one `GrowthStage`
+  per Feed, became `Adult` exactly on the 4th, and rejected `DragonAlreadyAdult`/`DragonNotFound`/
+  `InvalidRequest` correctly; ~20 pre-existing dragons all showed the `Element="Fire"` backward-
+  compat default, confirming that path works live too. Added `AddTestFood` (mirrors `AddTestGold`)
+  to `RemotesSetup.luau`/`init.server.luau` as a permanent manual-test lever, since there was no
+  other way to grant Food (no Buy Food transaction exists yet).
 - `ci/lint.sh` → real `PASSED` (selene + stylua, both clean after adding `selene.toml` — see Known
   gaps — and running `stylua src` once).
 - `rojo serve default.project.json` starts and listens; the client test harness (`src/client/`)

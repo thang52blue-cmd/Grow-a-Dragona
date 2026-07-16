@@ -2,13 +2,13 @@
 
 > Always load, read first. Last session's state transfer. Overwritten each `end-session`.
 
-## Session: 2026-07-16 — Core-loop plan received; MVP assets sourced; Feed Dragon (backlog item 5) Rules/Transaction built
+## Session: 2026-07-16 — Core-loop plan received; MVP assets sourced; Feed Dragon (backlog item 5) built and live-verified
 
 **Verified state:** All three gates green: `ci/compile-check.sh` → `COMPILE_OK`, `ci/run-tests.sh
-fast` → `PASSED` (14 specs, up from 12), `ci/lint.sh` → `PASSED`. **Not live-verified in Studio
-this session** — `rojo serve` was found not running (Studio's sync dialog showed "synced 1 day
-ago"); it was restarted in the background but the human hasn't reconnected Studio to it yet, so
-`FeedDragonTransaction` has only been proven at the pure-spec layer, not exercised live.
+fast` → `PASSED` (14 specs, up from 12), `ci/lint.sh` → `PASSED`. **Live-verified in Studio Play
+mode via the Roblox Studio MCP** (see step 8 below) — `rojo serve` was found not running early in
+the session, restarted, the human reconnected Studio, and `FeedDragonTransaction` was then driven
+through real client `Transaction:InvokeServer` calls end-to-end successfully.
 
 **What happened:**
 
@@ -71,10 +71,32 @@ ago"); it was restarted in the background but the human hasn't reconnected Studi
    of the code was still the old, pre-session version despite the asset work from step 2 having
    landed fine (that was done directly via `execute_luau`, independent of Rojo sync). Restarted
    `rojo serve` in the background. Deliberately **did not** attempt to click Studio's "Connect"
-   button via simulated input — that's a UI action on the user's own live/shared Studio session,
-   better left to them or a future turn with explicit confirmation, rather than blindly automating
-   a click. **Backlog item 5 is therefore marked "Rules/Transaction done, live verify pending" in
-   `memory-bank/backlog.md`, not fully DONE** — this is a deliberate, honest gap, not an oversight.
+   button via simulated input — that's a UI action on the user's own live/shared Studio session;
+   asked the human to do it instead. Committed everything up to this point as `4b02518`.
+8. Human reconnected Studio ("đã kết nối thành công") and asked to commit + reconnect (done in
+   step 7/this commit). Confirmed the sync landed (`ReplicatedStorage.Shared.Domain.FeedDragonRules`
+   etc. present via `search_game_tree`). **Found a real gap while trying to test:** there was no way
+   to grant Food to a live profile for manual testing (no Buy Food transaction exists, and
+   `AddTestFood` had been removed in an earlier cleanup session) — added it back
+   (`src/server/Remotes/RemotesSetup.luau` + `init.server.luau`, same pattern as the still-present
+   `AddTestGold`), granting a fixed amount of every food item across all 5 elements (payload-free,
+   since a hatched dragon's `Element` is random and can't be known in advance by a manual tester).
+   Also confirmed empirically that **`execute_luau` on the `Server` datamodel really cannot read
+   live profile state** (`DataService.Get(userId)` returned `nil` for an actually-online player) —
+   consistent with the pre-existing environment note below; worked around it by driving everything
+   through real `Transaction:InvokeServer` calls from the **Client** datamodel instead (a genuinely
+   real client, not a mock), and reading results back from the `TransactionResult.Data` each call
+   already returns, plus one `ProfileUpdated` listener snapshot for a full-state check.
+   **Live-verified, Play mode, real remote calls, no console errors from game code** (two benign
+   `Rojo-Warn` HTTP-polling messages only): Buy Common egg → Start Hatch → auto-Claim (a fresh
+   dragon, `Id=42`, rolled `Element=Earth`) → Feed ×4: `Baby_0→Baby_1→Baby_2→Baby_3→Adult`, one
+   `Mushroom` consumed per Feed (10→6 exactly), `BecameAdult=true` only on the 4th call, a 5th Feed
+   rejected `DragonAlreadyAdult` (41), an unknown `DragonUID` rejected `DragonNotFound` (40), a
+   malformed payload rejected `InvalidRequest` (1). Incidentally also confirmed ADR-003's
+   backward-compat default live: ~20 pre-existing dragons (hatched before this session) all show
+   `Element="Fire"` — the additive default, not an error. **Backlog item 5 is now marked
+   Rules/Transaction DONE + live-verified in `memory-bank/backlog.md`.** Re-ran all 3 CI gates green
+   after adding `AddTestFood`, then committed.
 
 **Deviations from the plan doc** (see `adr/ADR-003-feed-dragon-schema.md` for full reasoning):
 - No `FoodInventory = {FireFood, WaterFood, ...}` bucket — reused the existing generic
@@ -85,19 +107,14 @@ ago"); it was restarted in the background but the human hasn't reconnected Studi
   owned) to keep the pure layer deterministic and its spec exact.
 
 **Do next:**
-1. Reconnect Studio to the now-running `rojo serve` (human action: click "Connect", or confirm
-   it's already synced) and live-verify `FeedDragonTransaction` in Play mode — inject a test Baby
-   dragon + matching food into a live profile via `execute_luau`, invoke the `Transaction` remote
-   with `TransactionType.FeedDragon`, confirm `GrowthStage`/`FeedCount` advance and the food is
-   consumed, confirm the 4th feed transforms to Adult, confirm wrong/no food rejects `MissingFood`
-   cleanly with no console errors.
-2. Phase B of `docs/prd/core-game-loop.md`: temporary Nursery/Baby-Area, spawn a Baby Dragon model
+1. Phase B of `docs/prd/core-game-loop.md`: temporary Nursery/Baby-Area, spawn a Baby Dragon model
    (clone `ReplicatedStorage.DragonModels.Baby`) per hatched dragon, attach a Feed
    `ProximityPrompt` that sends only `DragonUID`. This is what actually lets a player reach
-   `FeedDragonTransaction` in-game — right now it's remote-callable but has no world presence.
+   `FeedDragonTransaction` in-game — right now it's only remote-callable, no world presence yet.
    `ReplicatedStorage.DragonModels.{Baby,Adult}` and `NestModels.Default` are ready to clone from.
-3. Backlog item 3 (engine-lane activation ADR) remains open/unblocked if the human wants to switch
-   lanes instead.
+2. Backlog item 3 (engine-lane activation ADR) or item 6 (Assign Producer / Collect Nest) remain
+   open/unblocked if the human wants to switch lanes instead. Item 6 needs its own ADR for Farm
+   Slot/Nest schema — ADR-003 deliberately did not pre-approve it.
 
 **Environment note (unchanged, restate every session):** `rojo serve` does NOT reliably stay
 running across sessions/machine restarts — **verify with `tasklist`/`curl localhost:34872` before

@@ -11,6 +11,7 @@ Players.CharacterAutoLoads = false
 
 local DataService = require(script.Persistence.DataService)
 local CurrencyService = require(script.Services.CurrencyService)
+local InventoryService = require(script.Services.InventoryService)
 local HatchSpawner = require(script.Services.HatchSpawner)
 local RemotesSetup = require(script.Remotes.RemotesSetup)
 local PlayerRuntimeStore = require(script.Runtime.PlayerRuntimeStore)
@@ -23,9 +24,11 @@ local FeedDragonTransaction = require(script.Transactions.Dragon.FeedDragonTrans
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local TransactionType = require(Shared.Domain.TransactionType)
 local Types = require(Shared.Types.Types)
+local FoodConfig = require(Shared.Data.FoodConfig) :: Types.FoodConfig
 
 local TEST_GOLD_AMOUNT = 10
 local TEST_GOLD_BIG_AMOUNT = 10000
+local TEST_FOOD_AMOUNT = 5
 
 -- Per-type rate limits on top of the global one TransactionService already enforces
 -- (AGENTS.md §10).
@@ -44,6 +47,7 @@ local profileUpdated = remotesFolder:WaitForChild("ProfileUpdated") :: RemoteEve
 local addTestGold = remotesFolder:WaitForChild("AddTestGold") :: RemoteEvent
 local addTestGold10000 = remotesFolder:WaitForChild("AddTestGold10000") :: RemoteEvent
 local spendTestGold = remotesFolder:WaitForChild("SpendTestGold") :: RemoteEvent
+local addTestFood = remotesFolder:WaitForChild("AddTestFood") :: RemoteEvent
 local transactionRemote = remotesFolder:WaitForChild("Transaction") :: RemoteFunction
 
 local function snapshotOf(player: Player): {
@@ -178,6 +182,23 @@ end)
 spendTestGold.OnServerEvent:Connect(function(player: Player)
 	local ok, _newBalance, err = CurrencyService.SpendGold(player, TEST_GOLD_AMOUNT)
 	pushSnapshot(player, if ok then nil else err)
+end)
+
+-- Grants a fixed amount of every food item across every element -- Feed Dragon (backlog item 5)
+-- has no real acquisition path for Food yet (no Buy Food transaction), and a dragon's Element is
+-- rolled randomly at hatch, so a manual tester can't know in advance which one food item to grant.
+-- Same manual-test-lever pattern as AddTestGold above.
+addTestFood.OnServerEvent:Connect(function(player: Player)
+	local lastErr: string? = nil
+	for _, items in FoodConfig do
+		for _, itemId in items do
+			local ok, _newQuantity, err = InventoryService.AddItem(player, itemId, TEST_FOOD_AMOUNT)
+			if not ok then
+				lastErr = err
+			end
+		end
+	end
+	pushSnapshot(player, lastErr)
 end)
 
 transactionRemote.OnServerInvoke = function(player: Player, requestId: unknown, typeId: unknown, payload: unknown)

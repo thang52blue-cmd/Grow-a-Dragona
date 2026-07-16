@@ -53,7 +53,7 @@
    is not yet rolled (no probability weights exist in `DragonConfig.json`) — flagged as a follow-up,
    blocks backlog item 5 wherever it needs `Element`.
 
-5. **Feed Dragon and growth calculation** — **RULES/TRANSACTION DONE 2026-07-16, LIVE VERIFY PENDING**
+5. **Feed Dragon and growth calculation** — **RULES/TRANSACTION DONE + LIVE-VERIFIED 2026-07-16**
    DoD met: `src/shared/Domain/FeedDragonRules.spec.luau` proves a correct-element Feed consumes
    exactly one matching food item and advances exactly one GrowthStage (`Baby_0`→`Baby_1`→...),
    proves wrong-element/no-food is rejected (`MissingFood`) without consuming anything or advancing
@@ -65,11 +65,24 @@
    `Profile.inventory` rather than a new bucket) and `docs/prd/core-game-loop.md` for the source
    plan. `FeedDragonTransaction` is wired into `TransactionService` (`TransactionType.FeedDragon`)
    the same way as every prior transaction.
-   **Not yet done:** live Studio verification (rojo sync was disconnected this session — `rojo
-   serve` was started but Studio hadn't reconnected yet) and Phase B/world-presence (Nursery area,
-   Baby Dragon spawn, Feed `ProximityPrompt`) so a player can actually trigger this in-game. MVP
-   placeholder Dragon/Nest models are already staged at `ReplicatedStorage.DragonModels.{Baby,Adult}`
-   / `NestModels.Default` (see `memory-bank/systemPatterns.md`), ready for Phase B to clone from.
+   **Live-verified in Studio Play mode via the Roblox Studio MCP, 2026-07-16** (real client
+   `Transaction:InvokeServer` calls, real player, real profile — not a mocked path): a full
+   Buy→Hatch→(auto-)Claim→Feed×4 chain on a freshly-hatched Common/Earth dragon consumed exactly
+   one `Mushroom` per Feed (10→6), advanced `Baby_0→Baby_1→Baby_2→Baby_3→Adult` one stage per call,
+   the 4th Feed returned `BecameAdult=true` exactly once, a 5th Feed attempt rejected
+   `DragonAlreadyAdult` (code 41), an unknown `DragonUID` rejected `DragonNotFound` (code 40), and a
+   malformed payload rejected `InvalidRequest` (code 1). Also incidentally confirmed the
+   backward-compat default from ADR-003 works live: ~20 pre-existing dragons hatched before this
+   session all show `Element="Fire"` (the additive default), not an error. No console errors from
+   game code (two benign `Rojo-Warn` HTTP-polling messages, unrelated to game logic). Added a
+   permanent `AddTestFood` test-harness remote (`src/server/Remotes/RemotesSetup.luau` +
+   `init.server.luau`, mirrors the existing `AddTestGold` pattern) since there was no way to grant
+   Food for manual testing otherwise — Buy Food isn't a designed transaction yet.
+   **Still not done:** Phase B/world-presence (Nursery area, Baby Dragon spawn, Feed
+   `ProximityPrompt`) — a real player still has no in-game way to reach this transaction, only via
+   direct remote calls as done here. MVP placeholder Dragon/Nest models are already staged at
+   `ReplicatedStorage.DragonModels.{Baby,Adult}` / `NestModels.Default` (see
+   `memory-bank/systemPatterns.md`), ready for Phase B to clone from.
 
 6. **Assign Producer and Collect Nest transactions**
    DoD: spec proves only Adult dragons can be assigned to produce; spec proves Collect advances the
