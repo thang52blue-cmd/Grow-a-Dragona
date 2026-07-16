@@ -13,9 +13,12 @@ local TransactionCode = require(Shared.Domain.TransactionCode)
 local RarityDisplay = require(script.Parent.Parent.UI.RarityDisplay)
 local EggIconViewport = require(script.Parent.Parent.UI.EggIconViewport)
 local RequestIdGenerator = require(script.Parent.Parent.RequestIdGenerator)
+local Elements = require(Shared.Domain.Elements)
 
 local RARITY_ORDER = RarityDisplay.Order
 local RARITY_COLOR = RarityDisplay.Color
+local ELEMENT_ORDER = Elements.List
+local GROWTH_STAGE_ORDER = { "Baby_0", "Baby_1", "Baby_2", "Baby_3", "Adult" }
 
 local CODE_MESSAGE: { [number]: string } = {
 	[TransactionCode.NoEggToHatch] = "You don't own that egg.",
@@ -50,8 +53,8 @@ function EggInventoryUI.Init(player: Player, remotesFolder: Folder): ScreenGui
 
 	local inventoryFrame = Instance.new("Frame")
 	inventoryFrame.Name = "InventoryFrame"
-	inventoryFrame.Size = UDim2.fromOffset(500, 470)
-	inventoryFrame.Position = UDim2.new(0.5, -250, 0.5, -235)
+	inventoryFrame.Size = UDim2.fromOffset(500, 640)
+	inventoryFrame.Position = UDim2.new(0.5, -250, 0.5, -320)
 	inventoryFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 	inventoryFrame.Visible = false
 	inventoryFrame.Parent = screenGui
@@ -120,7 +123,7 @@ function EggInventoryUI.Init(player: Player, remotesFolder: Folder): ScreenGui
 
 	local dragonsLabel = Instance.new("TextLabel")
 	dragonsLabel.Name = "DragonsLabel"
-	dragonsLabel.Size = UDim2.new(1, -24, 0, 44)
+	dragonsLabel.Size = UDim2.new(1, -24, 0, 220)
 	dragonsLabel.Position = UDim2.fromOffset(12, 412)
 	dragonsLabel.BackgroundTransparency = 1
 	dragonsLabel.Text = "Dragons: (none)"
@@ -254,22 +257,23 @@ function EggInventoryUI.Init(player: Player, remotesFolder: Folder): ScreenGui
 			then "Hatching: " .. table.concat(hatchingLines, ", ")
 			else "Hatching: (none)"
 
-		-- Grouped by Rarity + a Baby/Adult stage bucket (not the full GrowthStage, e.g.
-		-- "Baby_2") -- debugging in the MVP just needs to distinguish "can't produce yet" from
-		-- "ready to assign to a Farm Slot", per direct user request.
+		-- Grouped by Rarity + Element + the exact GrowthStage (not a coarse Baby/Adult bucket) --
+		-- full detail requested for MVP debugging, so a specific Feed-progress stage is visible
+		-- too, not just "Baby vs Adult".
 		local dragonCounts: { [string]: number } = {}
 		for _, dragon in snapshot.dragons do
-			local stageBucket = if dragon.GrowthStage == "Adult" then "Adult" else "Baby"
-			local key = `{dragon.Rarity} {stageBucket}`
+			local key = `{dragon.Rarity} {dragon.Element} {dragon.GrowthStage}`
 			dragonCounts[key] = (dragonCounts[key] or 0) + 1
 		end
 		local dragonLines = {}
 		for _, rarity in RARITY_ORDER do
-			for _, stageBucket in { "Baby", "Adult" } do
-				local key = `{rarity} {stageBucket}`
-				local count = dragonCounts[key]
-				if count and count > 0 then
-					table.insert(dragonLines, `{key} x{count}`)
+			for _, element in ELEMENT_ORDER do
+				for _, growthStage in GROWTH_STAGE_ORDER do
+					local key = `{rarity} {element} {growthStage}`
+					local count = dragonCounts[key]
+					if count and count > 0 then
+						table.insert(dragonLines, `{key} x{count}`)
+					end
 				end
 			end
 		end

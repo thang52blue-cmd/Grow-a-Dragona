@@ -51,6 +51,7 @@ end
 makeButton("AddGoldButton", "+10 Gold", 0, "AddTestGold")
 makeButton("SpendGoldButton", "-10 Gold", 1, "SpendTestGold")
 makeButton("AddGold10000Button", "+10000 Gold", 2, "AddTestGold10000")
+makeButton("ClearDragonsButton", "Clear Dragons", 3, "ClearTestDragons")
 
 type PendingHatch = {
 	Id: string,

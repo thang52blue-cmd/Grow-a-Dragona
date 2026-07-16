@@ -2,6 +2,151 @@
 
 > Always load, read first. Last session's state transfer. Overwritten each `end-session`.
 
+## Session: 2026-07-17 (continued a sixth time) — Removed Workspace.AssetPreview (Studio-only, not in git)
+
+User asked to remove an "asset preview" from the Workspace so it isn't visible junk during Play.
+Found `Workspace.AssetPreview` (a Folder with `Default`/`Adult`/`Baby` Model children, 220 total
+descendants) sitting directly in the 3D world — `script_grep` confirmed **no script anywhere
+references it**; it was a leftover staging copy from when the Dragon/Nest assets were first
+inserted into Studio (the actual assets the game clones from, `ReplicatedStorage.DragonModels.
+Adult`/`.Baby` and `ReplicatedStorage.NestModels.Default`, already existed independently and were
+untouched). Destroyed it via `execute_luau` on the `Edit` datamodel; confirmed via
+`search_game_tree` it's gone, then confirmed via Play mode + `screen_capture` that the spawn area
+is now clean (only `Baseplate`/`SpawnLocation`/`Terrain` remain). No console errors.
+
+**Important:** `default.project.json` does not claim `Workspace` at all (only `ReplicatedStorage.
+Shared`, `ServerScriptService.Server`, `StarterPlayer.StarterPlayerScripts.Client` are Rojo-synced
+from `src/`) — so this change lives **only in the current Studio session / the `.rbxl` place
+file**, not in git. Nothing to commit for this one. **The human needs to save the place in Studio
+(File > Save, or Publish) for this deletion to persist** past this session — flag this if a future
+session finds `Workspace.AssetPreview` back again (it would mean the place was reopened without
+saving).
+
+## Session: 2026-07-17 (continued a fifth time) — Clear Dragons client test button
+
+**Verified state:** All three gates green (`COMPILE_OK`, 18 specs `PASSED`, lint `PASSED`).
+**Live-verified in Studio Play mode via the Roblox Studio MCP**, click-testing the actual button
+(not just the remote). Not yet committed — stacked on the two uncommitted sessions below it.
+
+**What happened:** User asked for a client-side test button to clear all of the player's dragons —
+`ClearTestDragons` (added earlier today) could previously only be fired via `execute_luau`, not
+from an in-game button. Added one line to `src/client/init.client.luau`:
+`makeButton("ClearDragonsButton", "Clear Dragons", 3, "ClearTestDragons")`, reusing the existing
+generic `makeButton(name, text, order, remoteName)` helper already used for the `+10 Gold`/
+`-10 Gold`/`+10000 Gold` test buttons — no new code needed beyond the one call, since
+`makeButton`'s `Activated` handler already just does `FireServer()` with no payload, exactly
+`ClearTestDragons`'s shape. Ran all 3 CI gates green (no nits). **Live-verified in Studio:**
+granted 4 test dragons via `AddTestDragon`, screenshotted the Nursery confirming all 4 world
+models visible with their full-detail labels (e.g. `"Rare Fire - Baby_1 (Fed 1/4)"`) from the
+previous session's work, clicked the real "Clear Dragons" button via `user_mouse_input` +
+`instance_path`, screenshotted again — all 4 models vanished instantly — and confirmed via
+`execute_luau` the profile's dragon count dropped to 0. No console errors. Updated
+`memory-bank/backlog.md` (amended item 12's entry, not a new item), `activeContext.md`, and this
+file. **Not yet committed.**
+
+**Do next:** ask whether to commit everything uncommitted today (this button + the full-detail
+display upgrade + `ClearTestDragons` itself); otherwise same next-steps as below (item 6's
+Farm-Slot world-presence, item 7, item 3).
+
+## Session: 2026-07-17 (continued a fourth time) — full Rarity/Element/GrowthStage display
+
+**Verified state:** All three gates green (`COMPILE_OK`, 18 specs `PASSED`, lint `PASSED`).
+**Live-verified in Studio Play mode via the Roblox Studio MCP** (exact billboard text read back via
+`execute_luau`, Inventory UI screenshot-confirmed). Not yet committed — stacked on top of the
+`ClearTestDragons` session directly below, also uncommitted.
+
+**What happened:**
+
+1. User asked (in Vietnamese) for complete dragon info everywhere it's shown, for easier
+   debugging: rarity, element, growth stage (mức độ trưởng thành). Read this as "upgrade both
+   places a dragon is currently displayed" — the Nursery world billboard (`DragonSpawner.luau`,
+   only ever showed `Fed X/4` for Babies or `"{Element} Dragon (Adult)"` for Adults, no Rarity
+   anywhere) and the Inventory panel's dragon-count line (previously the coarse `{Rarity}
+   {Baby|Adult}` bucket added earlier this same day, no Element, no exact stage).
+2. `src/server/Services/DragonSpawner.luau`: added a `statusLabelText(dragon)` helper —
+   `"{Rarity} {Element} - {GrowthStage} (Fed {FeedCount}/4)"` for a Baby,
+   `"{Rarity} {Element} - Adult"` for an Adult. `Spawn` now also sets `Rarity`/`GrowthStage`
+   attributes on the clone (previously only `DragonUID`/`Element`/`FeedCount`) so
+   `UpdateFeedCount` can rebuild the full label text from the model's own attributes without
+   needing the full `DragonRecord` passed back in (it's only ever given a bare `feedCount` number
+   by its caller). The Feed `ProximityPrompt`'s `ObjectText` also gained `Rarity`
+   (`"{Rarity} {Element} Dragon"`).
+3. `src/client/Inventory/EggInventoryUI.luau`: the dragon-count grouping key changed from
+   `` `{Rarity} {Baby|Adult}` `` to `` `{Rarity} {Element} {GrowthStage}` ``, iterated in a fixed
+   `RARITY_ORDER × ELEMENT_ORDER (Elements.List) × GROWTH_STAGE_ORDER` triple loop (125 checked
+   combinations, only non-zero ones rendered — cheap, no perf concern at this data size).
+   `inventoryFrame` grew from 500×470 to 500×640 and `dragonsLabel` from 44px to 220px tall to fit
+   the longer, more granular line without clipping.
+4. Ran all 3 CI gates green (no lint nits this time).
+5. **Live-verified in Studio Play mode via the Roblox Studio MCP:** confirmed `get_studio_state`
+   still reported `Play` from an earlier turn in this same conversation even though this session
+   had already called `start_stop_play(false)` once before — explicitly re-Stopped, re-confirmed
+   `Edit`, re-verified the edited files synced via `script_grep` (not `search_game_tree`, since a
+   text search inside script source is more direct for confirming a specific new constant landed),
+   then restarted Play. Bought+hatched a fresh Rare Fire dragon (auto-claimed instantly by the
+   client's existing `AutoClaimController` before a manual claim attempt could even run — expected
+   behavior, not a bug, cost one confused round-trip), fed it once, and read
+   `Workspace.Nursery.<UserId>.<DragonUID>.FeedStatus.FeedLabel.Text` directly via `execute_luau`:
+   exactly `"Rare Fire - Baby_1 (Fed 1/4)"`. Read two pre-existing Adults' labels the same way:
+   `"Mythic Earth - Adult"`, `"Rare Water - Adult"`. Opened the real Inventory UI via simulated
+   mouse click and screenshotted it: the Dragons line read `"Common Fire Adult x1, Rare Fire
+   Baby_1 x1, Rare Water Adult x1, Mythic Earth Adult x1"` — exactly the requested full detail.
+   `get_console_output` showed no errors. Stopped Play mode afterward.
+6. Updated `memory-bank/backlog.md` (amended item 11 with an "Update" note, not a new item number,
+   since this is a direct refinement of that same still-recent feature), `progress.md`,
+   `activeContext.md`, and this `handoff.md`. **Not yet committed.**
+
+**Deviations / judgment calls (not user-specified, worth restating):**
+- Noticed (not asked to fix, so left alone): `AddTestDragon` grants a profile-level Adult dragon
+  but never calls `DragonSpawner.Spawn` for it, so it gets no Nursery model unless the player later
+  rejoins (triggering `RespawnAll`). Only affects that one debug harness, not real gameplay
+  (`ClaimHatch`/`FeedDragon`'s post-commit handlers always spawn correctly).
+- Kept the Inventory grouping as counts-per-combination rather than listing every individual
+  dragon instance — full detail was requested, not necessarily one line per dragon; a
+  Rarity×Element×GrowthStage tuple is already a meaningful "type" for MVP debugging purposes and
+  keeps the line from growing unboundedly as dragon count increases.
+
+**Do next:**
+1. Ask the human whether to commit this work (and the `ClearTestDragons` harness below it, if
+   still uncommitted) before starting anything else.
+2. Backlog item 6's Farm-Slot-specific world-presence pass is still open otherwise; item 7 next
+   after that; item 3 remains open/unblocked.
+
+**Environment note (unchanged, restate every session):** `rojo serve` does NOT reliably stay
+running across sessions — verify with `tasklist`/`curl localhost:34872/api/rojo`. Bash tool needs
+`export PATH="$PATH:/c/Users/Minh Anh/.rokit/bin"` prefixed before `ci/*.sh` calls. **New this
+session:** `mcp__Roblox_Studio__get_studio_state` reporting `Play` does not guarantee it's the same
+Play session as before, or that a prior `start_stop_play(false)` in this same conversation actually
+took effect by the time you check again much later — re-verify and explicitly re-Stop/re-Start
+rather than assuming. `script_grep` (searches script *source* text) is a more direct sync-check than
+`search_game_tree` when confirming a specific new constant/string landed, vs. confirming an
+instance/module exists structurally.
+
+## Session: 2026-07-17 (continued a third time) — ClearTestDragons debug harness
+
+**Verified state:** All three gates green (`COMPILE_OK`, 18 specs `PASSED`, lint `PASSED` after
+fixing one `selene` unused-variable warning). **Live-verified in Studio Play mode via the Roblox
+Studio MCP.** Not yet committed.
+
+**What happened:** User asked (in Vietnamese) to clear all of the test player's dragons so they
+could test again from a clean slate. Added a new `ClearTestDragons` debug remote, same pattern as
+`AddTestGold`/`AddTestFood`/`AddTestDragon`/`FastForwardProduction` (`RemotesSetup.luau` +
+`init.server.luau`) — deliberately did **not** try to mutate live server state directly via
+`execute_luau` on the `Server` datamodel, per this file's standing environment note that its
+`require()` cache doesn't reliably match the live running game. The handler: sets
+`profile.dragons = {}`, resets every entry in `profile.farmSlots` back to an empty slot
+(`AssignedDragonUID/ProductionStartedAt = nil`, `UncollectedEggCount = 0`,
+`IsProductionPaused = false`) so no Farm Slot is left pointing at a now-deleted dragon UID, and
+calls `DragonSpawner.DespawnAll(player)` to clear the Nursery. Never touches gold/inventory/eggs.
+Fixed one `selene` warning (`slot` bound but unused in the reset loop — changed to iterate keys
+only). Live-verified: granted a test dragon, confirmed the profile held it, fired
+`ClearTestDragons`, confirmed the dragon count dropped to 0, the Nursery folder had 0 children, and
+attempting to `AssignProducer` the now-deleted dragon UID correctly returned `DragonNotFound` (no
+dangling references). No console errors. Not yet committed — memory-bank write-back only so far.
+
+**Do next:** ask whether to commit; otherwise same next-steps as the previous entries below (item
+6's Farm-Slot world-presence, item 7, item 3).
+
 ## Session: 2026-07-17 (continued again) — Adult Dragon world-presence + Inventory Baby/Adult breakdown
 
 **Verified state:** All three gates green: `ci/compile-check.sh` → `COMPILE_OK`, `ci/run-tests.sh

@@ -184,12 +184,26 @@ smoke-tested):
   screenshot-confirmed multiple Adults visibly standing in the Nursery; screenshot-confirmed the
   real Inventory UI's Baby/Adult breakdown line. No console errors.
 
+- **Updated 2026-07-17 (later same day, still item 11) — full dragon detail:** upgraded the coarse
+  Baby/Adult bucket to Rarity + Element + exact `GrowthStage` everywhere it's displayed, per direct
+  follow-up user request. `DragonSpawner` billboards now read e.g. `"Rare Fire - Baby_1 (Fed
+  1/4)"`/`"Mythic Earth - Adult"` (new `Rarity`/`GrowthStage` attributes); `EggInventoryUI.luau`'s
+  dragon line now groups by `` `{Rarity} {Element} {GrowthStage}` ``. Live-verified in Studio via
+  `execute_luau` reading the exact billboard text and a screenshot of the Inventory UI. No console
+  errors.
+
+- **Added 2026-07-17 (backlog item 12, ad-hoc tooling) — ClearTestDragons debug harness:** wipes
+  `profile.dragons`, resets every `profile.farmSlots` entry to empty, and despawns the Nursery —
+  same pattern as `AddTestFood`/`AddTestDragon`. Live-verified: dragon count → 0, Nursery folder → 0
+  children, assigning a deleted dragon UID correctly returns `DragonNotFound`.
+
 ## What's left
 
 Backlog items 1, 2, 4, 5 (including Phase B world-presence, later overridden by item 11), 6
-(Rules/Transaction layer only), 10 (Food Shop), and 11 (Adult world-presence + Inventory breakdown)
-are done. Item 3 (engine-lane activation ADR) hasn't started. Items 7-9 haven't started. Item 6's
-Farm-Slot-specific world-presence (Adult+Nest models once *assigned to a slot*, Assign/Collect
+(Rules/Transaction layer only), 10 (Food Shop), 11 (Adult world-presence + full dragon-detail
+display), and 12 (ClearTestDragons) are done. Item 3 (engine-lane activation ADR) hasn't started.
+Items 7-9 haven't started. Item 6's Farm-Slot-specific world-presence (Adult+Nest models once
+*assigned to a slot*, Assign/Collect
 `ProximityPrompt`s) remains open as a follow-up pass — item 11 only covers the Nursery (pre-
 assignment) Adult display, not the Farm Slot itself. The test-harness vertical slice's manual
 Studio click-test is done for the original harness (2026-07-14/15), the Buy Egg/Hatch/Feed

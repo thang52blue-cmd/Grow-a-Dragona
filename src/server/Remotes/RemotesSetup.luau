@@ -7,6 +7,7 @@ local REMOTE_EVENT_NAMES = {
 	"AddTestFood",
 	"AddTestDragon",
 	"FastForwardProduction",
+	"ClearTestDragons",
 	"ProfileUpdated",
 }
 

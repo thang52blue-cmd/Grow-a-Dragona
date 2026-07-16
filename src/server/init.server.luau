@@ -60,6 +60,7 @@ local spendTestGold = remotesFolder:WaitForChild("SpendTestGold") :: RemoteEvent
 local addTestFood = remotesFolder:WaitForChild("AddTestFood") :: RemoteEvent
 local addTestDragon = remotesFolder:WaitForChild("AddTestDragon") :: RemoteEvent
 local fastForwardProduction = remotesFolder:WaitForChild("FastForwardProduction") :: RemoteEvent
+local clearTestDragons = remotesFolder:WaitForChild("ClearTestDragons") :: RemoteEvent
 local transactionRemote = remotesFolder:WaitForChild("Transaction") :: RemoteFunction
 
 local function snapshotOf(player: Player): {
@@ -259,6 +260,32 @@ fastForwardProduction.OnServerEvent:Connect(function(player: Player, slotIdRaw: 
 	end
 
 	slot.ProductionStartedAt -= secondsBack
+	pushSnapshot(player, nil)
+end)
+
+-- Wipes every owned dragon and any Farm Slot assignment referencing one, then despawns the
+-- Nursery so a tester can restart the Hatch->Feed->Assign->Collect loop from a clean slate.
+-- Test-only lever, same rationale as AddTestFood/AddTestDragon -- never touches gold/inventory/
+-- eggs, only the dragon-related profile sections plus their Runtime-only world models.
+clearTestDragons.OnServerEvent:Connect(function(player: Player)
+	local profile = DataService.Get(player.UserId)
+	if not profile then
+		pushSnapshot(player, "profile not loaded")
+		return
+	end
+
+	profile.dragons = {}
+	for slotId in profile.farmSlots do
+		profile.farmSlots[slotId] = {
+			SlotId = slotId,
+			AssignedDragonUID = nil,
+			ProductionStartedAt = nil,
+			UncollectedEggCount = 0,
+			IsProductionPaused = false,
+		}
+	end
+
+	DragonSpawner.DespawnAll(player)
 	pushSnapshot(player, nil)
 end)
 

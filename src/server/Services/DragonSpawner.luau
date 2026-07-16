@@ -71,8 +71,13 @@ local function slotPosition(player: Player, slotIndex: number): Vector3
 	return laneOrigin(player) + SLOT_SPACING * col + ROW_SPACING * row
 end
 
-local function feedLabelText(feedCount: number): string
-	return `Fed {feedCount}/4`
+-- Full debug-friendly status text -- Rarity + Element + exact GrowthStage (not just a Baby/Adult
+-- bucket) + Feed progress, per direct user request for complete on-model dragon info.
+local function statusLabelText(dragon: Types.DragonRecord): string
+	if dragon.GrowthStage == "Adult" then
+		return `{dragon.Rarity} {dragon.Element} - Adult`
+	end
+	return `{dragon.Rarity} {dragon.Element} - {dragon.GrowthStage} (Fed {dragon.FeedCount}/4)`
 end
 
 local function addStatusBillboard(clone: Model, text: string): TextLabel
@@ -129,10 +134,12 @@ function DragonSpawner.Spawn(player: Player, dragonUID: string, dragon: Types.Dr
 	clone:PivotTo(CFrame.new(slotPosition(player, slotIndex)))
 
 	clone:SetAttribute("DragonUID", dragonUID)
+	clone:SetAttribute("Rarity", dragon.Rarity)
 	clone:SetAttribute("Element", dragon.Element)
+	clone:SetAttribute("GrowthStage", dragon.GrowthStage)
 
 	if isAdult then
-		addStatusBillboard(clone, `{dragon.Element} Dragon (Adult)`)
+		addStatusBillboard(clone, statusLabelText(dragon))
 		clone.Parent = folder
 		CollectionService:AddTag(clone, ADULT_DRAGON_TAG)
 		return
@@ -145,14 +152,14 @@ function DragonSpawner.Spawn(player: Player, dragonUID: string, dragon: Types.Dr
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.Name = "FeedPrompt"
 		prompt.ActionText = "Feed"
-		prompt.ObjectText = `{dragon.Element} Dragon`
+		prompt.ObjectText = `{dragon.Rarity} {dragon.Element} Dragon`
 		prompt.HoldDuration = 0
 		prompt.MaxActivationDistance = 10
 		prompt.RequiresLineOfSight = false
 		prompt.Parent = anchorPart
 	end
 
-	addStatusBillboard(clone, feedLabelText(dragon.FeedCount))
+	addStatusBillboard(clone, statusLabelText(dragon))
 
 	clone.Parent = folder
 	CollectionService:AddTag(clone, BABY_DRAGON_TAG)
@@ -168,11 +175,16 @@ function DragonSpawner.UpdateFeedCount(player: Player, dragonUID: string, feedCo
 		return
 	end
 
+	local growthStage = "Baby_" .. feedCount
 	model:SetAttribute("FeedCount", feedCount)
+	model:SetAttribute("GrowthStage", growthStage)
+
 	local billboard = model:FindFirstChild("FeedStatus")
 	local label = billboard and (billboard:FindFirstChild("FeedLabel") :: TextLabel?)
 	if label then
-		label.Text = feedLabelText(feedCount)
+		local rarity = model:GetAttribute("Rarity")
+		local element = model:GetAttribute("Element")
+		label.Text = `{rarity} {element} - {growthStage} (Fed {feedCount}/4)`
 	end
 end
 

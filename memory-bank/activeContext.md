@@ -4,61 +4,75 @@
 
 ## Current focus
 
-Backlog items 1, 2, 4, 5, 6 (Rules/Transaction layer), 10 (Food Shop), and 11 (Adult world-presence
-+ Inventory breakdown) are complete. A Baby Dragon that reaches Adult now stays visible in the
-Nursery as the Adult model (no more despawn-to-nothing), and the Inventory panel's Dragons line
-breaks each Rarity down by Baby vs. Adult. **This overrides item 5's original "Adults get no world
-presence until Farm Assignment" rule** (from `docs/prd/core-game-loop.md`'s Recommended MVP rule) —
-per direct user request. The PRD doc itself is left unedited (saved-verbatim historical record);
-actual game behavior now deliberately deviates from it. Farm-Slot-specific world-presence (item 6's
-own follow-up: Adult+Nest models *once assigned to a slot*, Assign/Collect prompts) is still not
-built — item 11 only covers the pre-assignment Nursery display.
+Backlog items 1, 2, 4, 5, 6 (Rules/Transaction layer), 10 (Food Shop), 11 (Adult world-presence +
+full dragon-detail display), and 12 (ClearTestDragons harness) are complete. Every place a dragon
+is displayed (Nursery billboard, Inventory panel) now shows Rarity + Element + exact GrowthStage
+(e.g. `"Rare Fire - Baby_1 (Fed 1/4)"`, `"Common Fire Adult x1"`), not just a coarse Baby/Adult
+bucket — per direct follow-up user request for full MVP debug info. `ClearTestDragons` now has a
+client "Clear Dragons" test button (was remote-only before). Farm-Slot-specific world-presence
+(item 6's own follow-up: Adult+Nest models *once assigned to a slot*, Assign/Collect prompts) is
+still not built.
 
-## Last 3 done (2026-07-17 session, third part)
+## Last 3 done (2026-07-17 session, sixth part)
 
-1. User asked (in Vietnamese) for two things: (a) show the Adult Dragon model in place after a
-   Baby finishes its 4th Feed instead of despawning, with a note that an evolution animation might
-   be added later (not this session), and (b) make the Inventory panel clearly show dragon counts
-   broken down by Baby vs. Adult for easier MVP debugging.
-2. Implemented: `DragonSpawner.Spawn` now branches on `dragon.GrowthStage`, cloning
-   `ReplicatedStorage.DragonModels.Adult` (confirmed already staged in Studio, no new asset work)
-   for an Adult, tagged `AdultDragon` (no `ProximityPrompt`, a `"{Element} Dragon (Adult)"`
-   billboard). `RespawnAllBaby` renamed `RespawnAll`, filter changed to `AssignedSlotId == nil` so
-   both Baby and not-yet-assigned Adult dragons reappear in the Nursery on rejoin.
-   `init.server.luau`'s `FeedDragon` post-commit handler re-`Spawn`s instead of only despawning on
-   `BecameAdult=true`. `EggInventoryUI.luau`'s dragon-count line now groups by
-   `` `{Rarity} {Baby|Adult}` ``. No schema/ADR change (pure Runtime-only display). All 3 CI gates
-   green (18 specs, unchanged — engine-glue/UI only).
-3. Live-verified in Studio Play mode via the Roblox Studio MCP: fed a real `Baby_2` dragon to Adult
-   via the `Transaction` remote, confirmed via `inspect_instance` the model swapped to the
-   `AdultDragon` tag with no Feed prompt and the correct billboard text, screenshot-confirmed
-   multiple Adults standing in the Nursery, and screenshot-confirmed the Inventory UI's new
-   Baby/Adult breakdown line (`Common Baby x5, Common Adult x10, ...`). No console errors.
+1. User asked for a client-side test button to fire `ClearTestDragons` (previously only callable
+   via `execute_luau`). Added `makeButton("ClearDragonsButton", "Clear Dragons", 3,
+   "ClearTestDragons")` in `src/client/init.client.luau`, same row as the existing gold test
+   buttons. All 3 CI gates green.
+2. Live-verified in Studio: granted 4 test dragons, screenshotted the Nursery with all 4 visible
+   (confirming the full-detail labels from the previous part still read correctly, e.g. "Rare Fire
+   - Baby_1 (Fed 1/4)"), clicked the real button via simulated mouse input, screenshotted again —
+   all 4 models vanished instantly — and confirmed via `execute_luau` the dragon count dropped to
+   0. No console errors.
+
+## Earlier this session (fifth part)
+
+1. User asked to clear all of the test player's dragons to restart testing. Added
+   `ClearTestDragons` debug remote (`RemotesSetup.luau` + `init.server.luau`, same pattern as
+   `AddTestFood`/`AddTestDragon`): wipes `profile.dragons`, resets every `profile.farmSlots` entry
+   to empty, despawns the Nursery. Live-verified: dragon count → 0, Nursery → 0 children, a
+   deleted dragon UID correctly returns `DragonNotFound` on Assign. Fixed one `selene`
+   unused-variable warning.
+2. User then asked for full dragon info everywhere it's displayed — Rarity, Element, and growth
+   stage — for easier debugging. Upgraded `DragonSpawner`'s world billboard from a bare `Fed X/4` /
+   `"{Element} Dragon (Adult)"` to `"{Rarity} {Element} - {GrowthStage} (Fed X/4)"` /
+   `"{Rarity} {Element} - Adult"` (new `Rarity`/`GrowthStage` `SetAttribute`s so `UpdateFeedCount`
+   can rebuild the label without needing the full record passed back in); the Feed
+   `ProximityPrompt`'s `ObjectText` also gained `Rarity`.
+3. `EggInventoryUI.luau`'s dragon-count line upgraded from `` `{Rarity} {Baby|Adult}` `` to
+   `` `{Rarity} {Element} {GrowthStage}` `` (full detail, e.g. `Common Fire Adult x1, Rare Fire
+   Baby_1 x1`); bumped `inventoryFrame`/`dragonsLabel` height to fit more lines. All 3 CI gates
+   green (18 specs, unchanged). Live-verified in Studio: hatched+fed a fresh Rare Fire dragon,
+   read its exact billboard text via `execute_luau` (`"Rare Fire - Baby_1 (Fed 1/4)"`), and
+   screenshot-confirmed the Inventory UI's full-detail breakdown. No console errors.
 
 ## Current task
 
-Memory write-back for this session (this update). This work is **not yet committed** (items 6 and
-10 from earlier today already were, in `a492c46` and `623bec9`).
+Memory write-back for this session (this update). None of today's work since the Food Shop commit
+(`623bec9`) is committed yet — the Adult-world-presence/Inventory-breakdown commit (`ebb2c87`)
+predates the full-detail upgrade, `ClearTestDragons`, and its new client button, all three still
+uncommitted, and the user explicitly said "not now" once already this session (right after the
+full-detail upgrade) — **ask before committing each time, don't assume yes.**
 
 ## Next task
 
-1. Ask the human whether to commit this Adult-world-presence/Inventory-breakdown work now (same
-   "always ask before commit" pattern as the rest of today).
-2. Backlog item 6's Farm-Slot-specific world-presence pass (Adult+Nest models once assigned,
-   Assign/Collect prompts) is still open if the human wants to continue in priority order.
-3. Item 7 (Sell Production Egg) is next after that; item 3 (engine-lane activation ADR) remains
-   open/unblocked if the human wants to switch lanes.
-4. An evolution animation on Baby→Adult transform was mentioned as a possible future addition —
-   explicitly not part of this session, no animation exists yet (instant model swap only).
-5. Food pricing (flat 10-gold placeholder from the earlier Food Shop session) still needs real
-   balancing before ship.
+1. Ask the human whether to commit everything uncommitted now (full-detail display upgrade +
+   `ClearTestDragons` + its client button).
+2. Backlog item 6's Farm-Slot-specific world-presence pass is still open if the human wants to
+   continue in priority order.
+3. Item 7 (Sell Production Egg) is next after that; item 3 remains open/unblocked otherwise.
+4. `AddTestDragon` still doesn't spawn a Nursery model for the Adult it grants (only dragons that
+   go through `ClaimHatch`/`FeedDragon`'s post-commit `Spawn` call get one) — noticed this session,
+   not fixed (out of scope for what was asked; only matters for manual testing via that specific
+   harness, not real gameplay).
+5. Evolution animation on Baby→Adult transform remains a "maybe later" idea, not implemented.
+6. Food pricing (flat 10-gold placeholder) still needs real balancing before ship.
 
 **Environment note (unchanged, restate every session):** `rojo serve` does NOT reliably stay
 running across sessions — verify with `tasklist`/`curl localhost:34872/api/rojo` before assuming
 it's up. Bash tool needs `export PATH="$PATH:/c/Users/Minh Anh/.rokit/bin"` prefixed before
-`ci/*.sh` calls. Confirm new/changed files sync into the **Edit-mode** DataModel before starting
-Play. The `Transaction` remote requires a numeric `requestId`.
-`mcp__Roblox_Studio__user_mouse_input` (`instance_path`) + `screen_capture` reliably click-tests a
-UI end-to-end; `inspect_instance` on a specific Workspace path (need the player's exact `UserId`,
-e.g. `Workspace.Nursery.11039736402.5` — wildcard paths like `Nursery.*.5` are **not** supported)
-is the reliable way to confirm world-model attributes/tags/children after a transaction.
+`ci/*.sh` calls. Confirm changed files sync into the **Edit-mode** DataModel before starting Play.
+`inspect_instance`/`execute_luau` need the exact `Workspace` path with the player's literal numeric
+`UserId` — no wildcard segments. `mcp__Roblox_Studio__get_studio_state` can report `Play` mode
+still active from a previous turn even after this session called `start_stop_play(false)` earlier
+in the conversation — always re-check state rather than assuming Stop persisted across long gaps.

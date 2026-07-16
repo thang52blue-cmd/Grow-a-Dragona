@@ -197,7 +197,44 @@
     mentioned a future evolution animation as a "later" idea, explicitly not part of this pass —
     not implemented, no animation was added.
 
+    **Update 2026-07-17 (later same day):** the Baby/Adult bucket above was upgraded to full detail
+    (Rarity + Element + exact `GrowthStage`) per direct follow-up user request ("cần đầy đủ để dễ
+    debug"). `DragonSpawner`'s billboard text is now e.g. `"Rare Fire - Baby_1 (Fed 1/4)"` or
+    `"Mythic Earth - Adult"` (added `Rarity`/`GrowthStage` `SetAttribute`s alongside the existing
+    `Element`; the Feed `ProximityPrompt`'s `ObjectText` also gained `Rarity`).
+    `EggInventoryUI.luau`'s dragon line now groups by `` `{Rarity} {Element} {GrowthStage}` ``
+    (e.g. `Common Fire Adult x1, Rare Fire Baby_1 x1`) instead of the coarser Baby/Adult bucket;
+    `inventoryFrame`/`dragonsLabel` were made taller to fit more lines. `ci/compile-check.sh` →
+    `COMPILE_OK`, `ci/run-tests.sh fast` → `PASSED` (18 specs), `ci/lint.sh` → `PASSED`.
+    **Live-verified in Studio:** hatched a fresh Rare Fire dragon, fed it once, confirmed via
+    `execute_luau` that its world billboard read exactly `"Rare Fire - Baby_1 (Fed 1/4)"` and two
+    pre-existing Adults read `"Mythic Earth - Adult"`/`"Rare Water - Adult"`; screenshot-confirmed
+    the Inventory UI's Dragons line showed the same full-detail breakdown. No console errors.
+
+12. ~~**ClearTestDragons debug harness**~~ — **DONE 2026-07-17** (ad-hoc tooling request, not a
+    player-facing feature)
+    User asked to clear all of the test player's dragons to restart testing from a clean slate.
+    Added `ClearTestDragons` (`RemotesSetup.luau` + `init.server.luau`), same pattern as
+    `AddTestGold`/`AddTestFood`/`AddTestDragon`/`FastForwardProduction`: sets `profile.dragons = {}`,
+    resets every `profile.farmSlots` entry to empty (no dangling `AssignedDragonUID` pointing at a
+    deleted dragon), and calls `DragonSpawner.DespawnAll` to clear the Nursery. Never touches gold/
+    inventory/eggs. Fixed one `selene` unused-variable warning in the reset loop.
+    `ci/compile-check.sh` → `COMPILE_OK`, `ci/run-tests.sh fast` → `PASSED` (18 specs), `ci/lint.sh`
+    → `PASSED`. **Live-verified in Studio:** granted a test dragon, fired `ClearTestDragons`,
+    confirmed dragon count dropped to 0, Nursery folder had 0 children, and assigning the
+    now-deleted dragon UID correctly returned `DragonNotFound` (no dangling references). No console
+    errors.
+
+    **Update 2026-07-17 (later same day):** added a client-side "Clear Dragons" button
+    (`src/client/init.client.luau`, order `3` in the existing `makeButton` test-harness row
+    alongside `+10 Gold`/`-10 Gold`/`+10000 Gold`) that fires `ClearTestDragons` directly, per
+    direct follow-up user request — previously it could only be fired via `execute_luau`.
+    Live-verified: granted 4 test dragons, screenshotted the Nursery showing all 4 world models,
+    clicked the real "Clear Dragons" button via simulated mouse input, screenshotted again
+    confirming all 4 models vanished instantly, and confirmed via `execute_luau` the profile's
+    dragon count dropped to 0. No console errors.
+
 Backlog seeded 2026-07-14 from `README.md`'s "Recommended first MVP slices" (items 1-2 and 4-9 map
 1:1 to README's list 1-8; item 3 is new, inserted to match the `(backlog #3)` references already
-written into `AGENTS.md`). Items 10-11 were added 2026-07-17, out of the original seeded sequence,
+written into `AGENTS.md`). Items 10-12 were added 2026-07-17, out of the original seeded sequence,
 per direct user request.
