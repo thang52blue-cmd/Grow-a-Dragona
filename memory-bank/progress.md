@@ -170,14 +170,30 @@ smoke-tested):
   (open shop → click Buy on Fish → Gold `208,390→208,380`, status line confirmed). No console
   errors.
 
+- **Added 2026-07-17 (backlog item 11, ad-hoc) — Adult Dragon world-presence + Inventory
+  Baby/Adult breakdown:** `DragonSpawner.Spawn` now clones `ReplicatedStorage.DragonModels.Adult`
+  (not just `.Baby`) and tags it `AdultDragon`; `RespawnAllBaby` renamed `RespawnAll`, now filters
+  on `AssignedSlotId == nil` instead of `GrowthStage ~= "Adult"`; `init.server.luau`'s `FeedDragon`
+  post-commit handler re-`Spawn`s the Adult model on `BecameAdult=true` instead of despawning with
+  nothing. `EggInventoryUI.luau`'s dragon-count line now reads e.g. `Common Baby x5, Common Adult
+  x10` instead of just `Common x15`. **This deliberately overrides item 5's original "Adults get
+  no world presence until Farm Assignment" rule**, per direct user request — no schema/ADR change,
+  purely Runtime-only display. **Live-verified in Studio, 2026-07-17:** fed a real `Baby_2` dragon
+  to Adult via the `Transaction` remote, confirmed via `inspect_instance` the Nursery model swapped
+  to the `AdultDragon`-tagged model with no `ProximityPrompt` and the correct billboard text;
+  screenshot-confirmed multiple Adults visibly standing in the Nursery; screenshot-confirmed the
+  real Inventory UI's Baby/Adult breakdown line. No console errors.
+
 ## What's left
 
-Backlog items 1, 2, 4, 5 (including Phase B world-presence), 6 (Rules/Transaction layer only), and
-10 (Food Shop) are done. Item 3 (engine-lane activation ADR) hasn't started. Items 7-9 haven't
-started. Item 6's world-presence (spawning the Adult Dragon + Nest, Assign/Collect
-`ProximityPrompt`s) remains open as a follow-up pass, same split as item 5's Phase B. The
-test-harness vertical slice's manual Studio click-test is done for the original harness
-(2026-07-14/15), the Buy Egg/Hatch/Feed transaction UIs (2026-07-15/16), and now the Food Shop UI
+Backlog items 1, 2, 4, 5 (including Phase B world-presence, later overridden by item 11), 6
+(Rules/Transaction layer only), 10 (Food Shop), and 11 (Adult world-presence + Inventory breakdown)
+are done. Item 3 (engine-lane activation ADR) hasn't started. Items 7-9 haven't started. Item 6's
+Farm-Slot-specific world-presence (Adult+Nest models once *assigned to a slot*, Assign/Collect
+`ProximityPrompt`s) remains open as a follow-up pass — item 11 only covers the Nursery (pre-
+assignment) Adult display, not the Farm Slot itself. The test-harness vertical slice's manual
+Studio click-test is done for the original harness (2026-07-14/15), the Buy Egg/Hatch/Feed
+transaction UIs (2026-07-15/16), the Food Shop UI, and the Inventory Baby/Adult breakdown
 (2026-07-17) — no known outstanding gaps in any of them.
 
 ## Known bugs

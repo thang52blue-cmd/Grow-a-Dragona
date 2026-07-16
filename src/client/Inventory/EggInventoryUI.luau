@@ -254,15 +254,23 @@ function EggInventoryUI.Init(player: Player, remotesFolder: Folder): ScreenGui
 			then "Hatching: " .. table.concat(hatchingLines, ", ")
 			else "Hatching: (none)"
 
+		-- Grouped by Rarity + a Baby/Adult stage bucket (not the full GrowthStage, e.g.
+		-- "Baby_2") -- debugging in the MVP just needs to distinguish "can't produce yet" from
+		-- "ready to assign to a Farm Slot", per direct user request.
 		local dragonCounts: { [string]: number } = {}
 		for _, dragon in snapshot.dragons do
-			dragonCounts[dragon.Rarity] = (dragonCounts[dragon.Rarity] or 0) + 1
+			local stageBucket = if dragon.GrowthStage == "Adult" then "Adult" else "Baby"
+			local key = `{dragon.Rarity} {stageBucket}`
+			dragonCounts[key] = (dragonCounts[key] or 0) + 1
 		end
 		local dragonLines = {}
 		for _, rarity in RARITY_ORDER do
-			local count = dragonCounts[rarity]
-			if count and count > 0 then
-				table.insert(dragonLines, `{rarity} x{count}`)
+			for _, stageBucket in { "Baby", "Adult" } do
+				local key = `{rarity} {stageBucket}`
+				local count = dragonCounts[key]
+				if count and count > 0 then
+					table.insert(dragonLines, `{key} x{count}`)
+				end
 			end
 		end
 		dragonsLabel.Text = if #dragonLines > 0

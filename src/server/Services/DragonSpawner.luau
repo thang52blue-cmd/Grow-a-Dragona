@@ -1,10 +1,13 @@
--- Engine-glue for Baby Dragon world presence (Phase B, docs/prd/core-game-loop.md). Spawns a
--- clone of ReplicatedStorage.DragonModels.Baby per non-Adult owned dragon in a shared "Nursery"
--- area, with a Feed ProximityPrompt whose Triggered handler is wired client-side
--- (src/client/Dragon/FeedPromptController.luau) to call FeedDragonTransaction with only the
--- DragonUID (AGENTS.md: clients request actions, server owns state). This is Runtime-only
--- decoration -- the persistent GrowthStage/FeedCount lives on the profile; nothing here is saved,
--- same pattern as HatchSpawner.luau for hatching eggs.
+-- Engine-glue for owned-dragon world presence in the shared "Nursery" area (Phase B, docs/prd/
+-- core-game-loop.md, extended 2026-07-17 per direct user request to also show the Adult model in
+-- place after transformation, instead of despawning). Spawns a clone of
+-- ReplicatedStorage.DragonModels.Baby or .Adult (picked from dragon.GrowthStage) for every owned
+-- dragon not yet assigned to a Farm Slot; a Baby gets a Feed ProximityPrompt whose Triggered
+-- handler is wired client-side (src/client/Dragon/FeedPromptController.luau) to call
+-- FeedDragonTransaction with only the DragonUID (AGENTS.md: clients request actions, server owns
+-- state); an Adult gets no prompt yet (Farm Slot assignment's own world-presence pass, backlog
+-- item 6, isn't built). This is Runtime-only decoration -- the persistent GrowthStage/FeedCount
+-- lives on the profile; nothing here is saved, same pattern as HatchSpawner.luau for hatching eggs.
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -14,6 +17,7 @@ local Types = require(ReplicatedStorage:WaitForChild("Shared").Types.Types)
 local DRAGON_MODELS_FOLDER_NAME = "DragonModels"
 local NURSERY_FOLDER_NAME = "Nursery"
 local BABY_DRAGON_TAG = "BabyDragon"
+local ADULT_DRAGON_TAG = "AdultDragon"
 
 -- Placeholder MVP location, chosen clear of Workspace.SpawnLocation (0, 0.5, -79) and within
 -- Workspace.Baseplate's bounds (2048x16x2048 centered at origin, top surface at Y=0).
@@ -71,17 +75,42 @@ local function feedLabelText(feedCount: number): string
 	return `Fed {feedCount}/4`
 end
 
--- Spawns one Baby Dragon model for an already-known dragon record. No-op if a model for this
--- DragonUID already exists (rejoin-safe, mirrors HatchSpawner.Spawn's tolerance of a missing
--- source model).
+local function addStatusBillboard(clone: Model, text: string): TextLabel
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "FeedStatus"
+	billboard.Size = UDim2.fromOffset(140, 36)
+	billboard.StudsOffset = Vector3.new(0, 3, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Parent = clone
+
+	local label = Instance.new("TextLabel")
+	label.Name = "FeedLabel"
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.Font = Enum.Font.SourceSansBold
+	label.TextScaled = true
+	label.Text = text
+	label.Parent = billboard
+
+	return label
+end
+
+-- Spawns one Dragon model (Baby or Adult variant, picked from dragon.GrowthStage) for an
+-- already-known dragon record. No-op if a model for this DragonUID already exists (rejoin-safe,
+-- mirrors HatchSpawner.Spawn's tolerance of a missing source model). A Baby gets a Feed
+-- ProximityPrompt; an Adult does not (nothing to feed) -- see FeedPromptController, which only
+-- attaches to the BABY_DRAGON_TAG.
 function DragonSpawner.Spawn(player: Player, dragonUID: string, dragon: Types.DragonRecord)
 	local folder = playerFolder(player)
 	if folder:FindFirstChild(dragonUID) then
 		return
 	end
 
+	local isAdult = dragon.GrowthStage == "Adult"
+
 	local dragonModels = ReplicatedStorage:FindFirstChild(DRAGON_MODELS_FOLDER_NAME)
-	local source = dragonModels and dragonModels:FindFirstChild("Baby")
+	local source = dragonModels and dragonModels:FindFirstChild(if isAdult then "Adult" else "Baby")
 	if not source then
 		return
 	end
@@ -101,6 +130,14 @@ function DragonSpawner.Spawn(player: Player, dragonUID: string, dragon: Types.Dr
 
 	clone:SetAttribute("DragonUID", dragonUID)
 	clone:SetAttribute("Element", dragon.Element)
+
+	if isAdult then
+		addStatusBillboard(clone, `{dragon.Element} Dragon (Adult)`)
+		clone.Parent = folder
+		CollectionService:AddTag(clone, ADULT_DRAGON_TAG)
+		return
+	end
+
 	clone:SetAttribute("FeedCount", dragon.FeedCount)
 
 	local anchorPart = clone.PrimaryPart or clone:FindFirstChildWhichIsA("BasePart", true)
@@ -115,29 +152,15 @@ function DragonSpawner.Spawn(player: Player, dragonUID: string, dragon: Types.Dr
 		prompt.Parent = anchorPart
 	end
 
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "FeedStatus"
-	billboard.Size = UDim2.fromOffset(140, 36)
-	billboard.StudsOffset = Vector3.new(0, 3, 0)
-	billboard.AlwaysOnTop = true
-	billboard.Parent = clone
-
-	local label = Instance.new("TextLabel")
-	label.Name = "FeedLabel"
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.Font = Enum.Font.SourceSansBold
-	label.TextScaled = true
-	label.Text = feedLabelText(dragon.FeedCount)
-	label.Parent = billboard
+	addStatusBillboard(clone, feedLabelText(dragon.FeedCount))
 
 	clone.Parent = folder
 	CollectionService:AddTag(clone, BABY_DRAGON_TAG)
 end
 
 -- Updates the FeedCount attribute/label after a successful Feed that didn't transform the
--- dragon to Adult (BecameAdult=true calls Despawn instead -- see init.server.luau).
+-- dragon to Adult (BecameAdult=true despawns and re-Spawns the Adult model instead -- see
+-- init.server.luau).
 function DragonSpawner.UpdateFeedCount(player: Player, dragonUID: string, feedCount: number)
 	local folder = findPlayerFolder(player)
 	local model = folder and (folder:FindFirstChild(dragonUID) :: Model?)
@@ -161,11 +184,14 @@ function DragonSpawner.Despawn(player: Player, dragonUID: string)
 	end
 end
 
--- Recreates a Baby Dragon model for every currently-non-Adult owned dragon -- called once the
--- player's character has loaded, so dragons fed in a previous session reappear in the Nursery.
-function DragonSpawner.RespawnAllBaby(player: Player, profile: Types.Profile)
+-- Recreates a Dragon model for every owned dragon not yet assigned to a Farm Slot (Baby or Adult
+-- alike) -- called once the player's character has loaded, so dragons fed/grown in a previous
+-- session reappear in the Nursery. A dragon with AssignedSlotId set gets no Nursery model -- its
+-- world presence belongs at its Farm Slot, a still-unbuilt follow-up (see
+-- adr/ADR-004-farm-slot-and-nest-schema.md's Consequences).
+function DragonSpawner.RespawnAll(player: Player, profile: Types.Profile)
 	for dragonUID, dragon in profile.dragons do
-		if dragon.GrowthStage ~= "Adult" then
+		if dragon.AssignedSlotId == nil then
 			DragonSpawner.Spawn(player, dragonUID, dragon)
 		end
 	end

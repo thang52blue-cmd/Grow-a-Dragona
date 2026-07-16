@@ -162,7 +162,42 @@
     Gold went `208,390 → 208,380` and the status line read "Bought 1 Fish for 10 gold." live in the
     UI, not just via direct remote calls. No console errors.
 
+11. ~~**Adult Dragon world-presence + Inventory Baby/Adult breakdown**~~ — **DONE 2026-07-17**
+    (ad-hoc user request; **overrides item 5's "Adults get no world presence until Farm
+    Assignment" rule**, which itself was taken from `docs/prd/core-game-loop.md`'s Recommended MVP
+    rule — the plan doc is left as-is/unedited since it's a saved verbatim historical record, but
+    the actual game behavior deliberately now deviates from it)
+    DoD: transforming a Baby to Adult (4th Feed) shows the Adult Dragon model in the Nursery in
+    place of the Baby, instead of despawning with nothing; the Inventory panel's Dragon count line
+    breaks each Rarity down by Baby vs. Adult stage, for easier MVP debugging.
+    `src/server/Services/DragonSpawner.luau`: `Spawn` now branches on `dragon.GrowthStage`, cloning
+    `ReplicatedStorage.DragonModels.Adult` (already staged in Studio, confirmed live via the Studio
+    MCP — no new asset work needed) instead of `.Baby` for an Adult, tagging it `AdultDragon`
+    (distinct from `BabyDragon`) with no `ProximityPrompt` (nothing to feed) and a
+    `"{Element} Dragon (Adult)"` billboard instead of `Fed X/4`. `FeedPromptController` needed no
+    change — it only ever attaches to the `BabyDragon` tag, so it correctly never sees Adult
+    models. `RespawnAllBaby` renamed to `RespawnAll` and its filter changed from
+    `GrowthStage ~= "Adult"` to `AssignedSlotId == nil`, so both Baby and not-yet-assigned Adult
+    dragons reappear in the Nursery on rejoin (a dragon already assigned to a Farm Slot still gets
+    no Nursery model — its world presence belongs at the Farm Slot, item 6's still-unbuilt
+    follow-up). `init.server.luau`'s `FeedDragon` post-commit handler now re-`Spawn`s after
+    `Despawn` on `BecameAdult=true` instead of despawning only. `src/client/Inventory/
+    EggInventoryUI.luau`'s dragon-count line now groups by `` `{Rarity} {Baby|Adult}` `` (e.g.
+    `Common Baby x5, Common Adult x10`) instead of by Rarity alone. No schema/ADR change — purely
+    Runtime-only world-presence + client display, no new persistent fields. `ci/compile-check.sh`
+    → `COMPILE_OK`, `ci/run-tests.sh fast` → `PASSED` (18 specs, unchanged — engine-glue/UI only,
+    no new pure Domain logic), `ci/lint.sh` → `PASSED`. **Live-verified in Studio Play mode via the
+    Roblox Studio MCP:** fed an existing `Baby_2` dragon (UID `5`) twice via the real `Transaction`
+    remote to reach Adult; confirmed via `inspect_instance` the Nursery model was tagged
+    `AdultDragon` (not `BabyDragon`), had no `ProximityPrompt` child, and its billboard read "Fire
+    Dragon (Adult)"; screenshot-confirmed multiple Adult models visibly standing in the Nursery
+    alongside Baby models. Opened the real Inventory UI and screenshot-confirmed the Dragons line
+    read `Common Baby x5, Common Adult x10, Rare Adult x4, Epic Baby x1, Epic Adult x2, Legendary
+    Baby x2, Legendary Adult x4, Mythic Baby x2, Mythic Adult x1`. No console errors. User
+    mentioned a future evolution animation as a "later" idea, explicitly not part of this pass —
+    not implemented, no animation was added.
+
 Backlog seeded 2026-07-14 from `README.md`'s "Recommended first MVP slices" (items 1-2 and 4-9 map
 1:1 to README's list 1-8; item 3 is new, inserted to match the `(backlog #3)` references already
-written into `AGENTS.md`). Item 10 was added 2026-07-17, out of the original seeded sequence, per
-direct user request.
+written into `AGENTS.md`). Items 10-11 were added 2026-07-17, out of the original seeded sequence,
+per direct user request.

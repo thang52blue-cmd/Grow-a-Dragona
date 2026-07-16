@@ -139,7 +139,7 @@ Players.PlayerAdded:Connect(function(player: Player)
 		player.CharacterAdded:Once(function()
 			if profile then
 				HatchSpawner.RespawnAllPending(player, profile)
-				DragonSpawner.RespawnAllBaby(player, profile)
+				DragonSpawner.RespawnAll(player, profile)
 			end
 		end)
 
@@ -285,7 +285,15 @@ transactionRemote.OnServerInvoke = function(player: Player, requestId: unknown, 
 		end
 	elseif result.Success and typeId == TransactionType.FeedDragon and result.Data then
 		if result.Data.BecameAdult then
+			-- Swap the Baby model for the Adult one in place, rather than despawning --
+			-- per direct user request, the Adult should stay visible in the Nursery until
+			-- assigned to a Farm Slot (backlog item 6's own world-presence pass, not yet built).
 			DragonSpawner.Despawn(player, result.Data.DragonUID)
+			local profile = DataService.Get(player.UserId)
+			local dragon = profile and profile.dragons[result.Data.DragonUID]
+			if dragon then
+				DragonSpawner.Spawn(player, result.Data.DragonUID, dragon)
+			end
 		else
 			DragonSpawner.UpdateFeedCount(player, result.Data.DragonUID, result.Data.FeedCount)
 		end

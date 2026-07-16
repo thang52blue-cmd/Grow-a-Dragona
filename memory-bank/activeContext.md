@@ -4,60 +4,61 @@
 
 ## Current focus
 
-Backlog items 1, 2, 4, 5 (world-presence included), 6 (Rules/Transaction layer), and 10 (Food Shop,
-ad-hoc) are complete. A player can now buy Food for Gold from a real in-game shop UI — previously
-Food could only be granted via the `AddTestFood` debug remote. **World-presence for item 6 (Adult
-Dragon + Nest world models, Assign/Collect `ProximityPrompt`s) is still not built** — no change this
-session.
+Backlog items 1, 2, 4, 5, 6 (Rules/Transaction layer), 10 (Food Shop), and 11 (Adult world-presence
++ Inventory breakdown) are complete. A Baby Dragon that reaches Adult now stays visible in the
+Nursery as the Adult model (no more despawn-to-nothing), and the Inventory panel's Dragons line
+breaks each Rarity down by Baby vs. Adult. **This overrides item 5's original "Adults get no world
+presence until Farm Assignment" rule** (from `docs/prd/core-game-loop.md`'s Recommended MVP rule) —
+per direct user request. The PRD doc itself is left unedited (saved-verbatim historical record);
+actual game behavior now deliberately deviates from it. Farm-Slot-specific world-presence (item 6's
+own follow-up: Adult+Nest models *once assigned to a slot*, Assign/Collect prompts) is still not
+built — item 11 only covers the pre-assignment Nursery display.
 
-**Everything for item 6 was driven by `docs/prd/core-game-loop.md`.** Item 10 (Food Shop) was a
-direct ad-hoc user request with **no existing design source** — no GDD section, PRD section, or
-backlog item planned it; prices are a flat placeholder (10 gold/item), not GDD-sourced. See
-`src/shared/Data/README.md`'s `FoodShopConfig.json` entry.
+## Last 3 done (2026-07-17 session, third part)
 
-## Last 3 done (2026-07-17 session, second half)
-
-1. User asked to add a Food Shop (buy Food per dragon element). Confirmed via research this was
-   genuinely undesigned (no GDD price, no PRD transaction, no backlog item) before proceeding —
-   this did **not** need an ADR since Food already reuses the generic `Profile.inventory` bucket
-   (ADR-003 precedent), so no schema change was involved.
-2. Implemented: `TransactionType.BuyFood = 11`, `TransactionCode.InvalidFoodType = 13`, new
-   `src/shared/Data/FoodShopConfig.json` (flat 10-gold placeholder per item, all 15 items),
-   `src/shared/Domain/BuyFoodRules.luau` + spec (18 specs total now), thin
-   `src/server/Transactions/Economy/BuyFoodTransaction.luau`, and
-   `src/client/Shop/FoodShopUI.luau` (Element-grouped `ScrollingFrame`, mirrors `EggShopUI.luau`),
-   wired into `init.client.luau`/`init.server.luau`. All 3 CI gates green.
-3. Live-verified in Studio Play mode via the Roblox Studio MCP: direct `Transaction:InvokeServer`
-   calls for a successful buy, a stacking re-buy, an unknown item (`InvalidFoodType`), and an
-   invalid amount (`InvalidAmount`) all returned correct codes/data — **and** click-tested the
-   actual `FoodShopUI` via simulated mouse input (screenshot-confirmed): opened the shop, clicked
-   Buy on Fish, Gold went `208,390→208,380`, status line read "Bought 1 Fish for 10 gold." No
-   console errors.
+1. User asked (in Vietnamese) for two things: (a) show the Adult Dragon model in place after a
+   Baby finishes its 4th Feed instead of despawning, with a note that an evolution animation might
+   be added later (not this session), and (b) make the Inventory panel clearly show dragon counts
+   broken down by Baby vs. Adult for easier MVP debugging.
+2. Implemented: `DragonSpawner.Spawn` now branches on `dragon.GrowthStage`, cloning
+   `ReplicatedStorage.DragonModels.Adult` (confirmed already staged in Studio, no new asset work)
+   for an Adult, tagged `AdultDragon` (no `ProximityPrompt`, a `"{Element} Dragon (Adult)"`
+   billboard). `RespawnAllBaby` renamed `RespawnAll`, filter changed to `AssignedSlotId == nil` so
+   both Baby and not-yet-assigned Adult dragons reappear in the Nursery on rejoin.
+   `init.server.luau`'s `FeedDragon` post-commit handler re-`Spawn`s instead of only despawning on
+   `BecameAdult=true`. `EggInventoryUI.luau`'s dragon-count line now groups by
+   `` `{Rarity} {Baby|Adult}` ``. No schema/ADR change (pure Runtime-only display). All 3 CI gates
+   green (18 specs, unchanged — engine-glue/UI only).
+3. Live-verified in Studio Play mode via the Roblox Studio MCP: fed a real `Baby_2` dragon to Adult
+   via the `Transaction` remote, confirmed via `inspect_instance` the model swapped to the
+   `AdultDragon` tag with no Feed prompt and the correct billboard text, screenshot-confirmed
+   multiple Adults standing in the Nursery, and screenshot-confirmed the Inventory UI's new
+   Baby/Adult breakdown line (`Common Baby x5, Common Adult x10, ...`). No console errors.
 
 ## Current task
 
-Memory write-back for this session (this update). This session's Food Shop work is **not yet
-committed** (backlog item 6 from earlier in the day already was, in commit `a492c46`).
+Memory write-back for this session (this update). This work is **not yet committed** (items 6 and
+10 from earlier today already were, in `a492c46` and `623bec9`).
 
 ## Next task
 
-1. Ask the human whether to commit the Food Shop work now (same "always ask before commit" pattern
-   as item 6 earlier today).
-2. Item 6's world-presence pass (Adult Dragon + Nest models, Assign/Collect prompts) is still the
-   next planned-backlog item if the human wants to continue in priority order — see the previous
-   session's notes below/`backlog.md` item 6.
-3. Item 7 (Sell Production Egg transaction) is next after that; item 3 (engine-lane activation ADR)
-   remains open/unblocked if the human wants to switch lanes.
-4. Real Food pricing (currently a flat 10-gold-per-item placeholder) needs actual balancing before
-   ship — flagged the same way `elementOdds`/`hatchDurationSeconds` placeholders were.
+1. Ask the human whether to commit this Adult-world-presence/Inventory-breakdown work now (same
+   "always ask before commit" pattern as the rest of today).
+2. Backlog item 6's Farm-Slot-specific world-presence pass (Adult+Nest models once assigned,
+   Assign/Collect prompts) is still open if the human wants to continue in priority order.
+3. Item 7 (Sell Production Egg) is next after that; item 3 (engine-lane activation ADR) remains
+   open/unblocked if the human wants to switch lanes.
+4. An evolution animation on Baby→Adult transform was mentioned as a possible future addition —
+   explicitly not part of this session, no animation exists yet (instant model swap only).
+5. Food pricing (flat 10-gold placeholder from the earlier Food Shop session) still needs real
+   balancing before ship.
 
 **Environment note (unchanged, restate every session):** `rojo serve` does NOT reliably stay
 running across sessions — verify with `tasklist`/`curl localhost:34872/api/rojo` before assuming
 it's up. Bash tool needs `export PATH="$PATH:/c/Users/Minh Anh/.rokit/bin"` prefixed before
-`ci/*.sh` calls. Confirm new files sync into the **Edit-mode** DataModel (via `search_game_tree`)
-before starting Play. The `Transaction` remote requires a numeric `requestId`
-(`PayloadValidator.IsPositiveInteger`) — a string requestId silently fails with generic
-`InvalidRequest` (code 1). New this session: `mcp__Roblox_Studio__user_mouse_input` with
-`instance_path` (e.g. `LocalPlayer.PlayerGui.FoodShopGui.OpenFoodShopButton`) + `screen_capture`
-worked well to click-test a UI end-to-end (not just invoke the remote directly) — worth reusing for
-future UI-facing features instead of only testing the transaction layer.
+`ci/*.sh` calls. Confirm new/changed files sync into the **Edit-mode** DataModel before starting
+Play. The `Transaction` remote requires a numeric `requestId`.
+`mcp__Roblox_Studio__user_mouse_input` (`instance_path`) + `screen_capture` reliably click-tests a
+UI end-to-end; `inspect_instance` on a specific Workspace path (need the player's exact `UserId`,
+e.g. `Workspace.Nursery.11039736402.5` — wildcard paths like `Nursery.*.5` are **not** supported)
+is the reliable way to confirm world-model attributes/tags/children after a transaction.
