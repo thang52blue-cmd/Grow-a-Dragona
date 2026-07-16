@@ -4,8 +4,10 @@
 
 ## Current focus
 
-Backlog items 1, 2, 4, and now 5 (Rules/Transaction + live verify) are done. Item 5 still has one
-gap: **no world-presence** — no Nursery, no Baby Dragon spawn, no Feed `ProximityPrompt` — so a
+Backlog items 1, 2, 4, and now 5 (Rules/Transaction + live verify) are done. Hatching (item 4) is
+now also **instant** (`EggConfig.json` every tier's `hatchDurationSeconds = 0`, per explicit user
+request) — see `adr/ADR-002-hatch-state-and-dragon-schema.md`'s newest addendum. Item 5 still has
+one gap: **no world-presence** — no Nursery, no Baby Dragon spawn, no Feed `ProximityPrompt` — so a
 real player has no in-game way to reach `FeedDragonTransaction` yet, only via a direct remote call
 (which is how this session verified it). MVP placeholder 3D assets for Dragon (Baby/Adult) and
 Nest are already staged in `ReplicatedStorage.DragonModels`/`NestModels` (Studio-side, not
@@ -31,6 +33,11 @@ git-tracked — see `memory-bank/systemPatterns.md`), ready for whoever builds P
    correctly), no console errors. Had to add a permanent `AddTestFood` remote (mirrors the existing
    `AddTestGold` test-harness pattern) since there was no way to grant Food otherwise — Buy Food
    isn't a designed transaction. This is now committed too.
+4. Made hatching instant per user request: all `EggConfig.json` `hatchDurationSeconds` → `0`, no
+   code change needed (existing `now < FinishAt` check already handles a zero-duration hatch as
+   immediately claimable). Documented as an ADR-002 addendum. Live-verified in Play mode: a hatch
+   auto-claims within about a second of real latency now, not the old 5s-30min wait. Along the way,
+   learned/documented a Play-snapshot-races-Rojo-sync gotcha (see handoff.md's environment note).
 
 ## Current task
 

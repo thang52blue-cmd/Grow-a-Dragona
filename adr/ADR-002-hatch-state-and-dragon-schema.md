@@ -144,6 +144,26 @@ happens to be/spawn this time."
    copy of this script exists elsewhere in the place (this was the only instance under
    that name).
 
+### Addendum 2026-07-16 (later still): hatching made instant, no wait
+
+Follow-up user request: hatching should no longer take any wait time at all — pressing Hatch
+should grant the dragon immediately, matching `docs/prd/core-game-loop.md`'s "Instant Hatch flow"
+(which had assumed this was already the case, contradicting this ADR's original per-rarity
+countdown).
+
+- All 5 `EggConfig.json` tiers' `hatchDurationSeconds` set to `0` (was 5s/30s/120s/600s/1800s
+  placeholders). No code change needed: `StartHatchRules.Stage` already computes
+  `FinishAt = now + hatchDurationSeconds`, so `FinishAt == StartedAt` when duration is 0, and
+  `ClaimHatchRules.Stage`'s `now < pending.FinishAt` check is already false at the same `now` —
+  claiming succeeds immediately. `AutoClaimController`'s `RunService.Heartbeat` poll (`now >=
+  pending.FinishAt`) picks this up on the very next frame, sub-16ms — imperceptible to a player,
+  no button/flow change needed on the client.
+- The multi-concurrent-hatch design, the world-visible hatching-egg model, and the countdown
+  BillboardGui this ADR built are all still intact and still used — a hatch now just resolves
+  effectively instantly rather than after a multi-second/minute wait. This is a tunable-value
+  change (exactly what `hatchDurationSeconds` was documented as, "adjust once real balancing
+  lands"), not a schema or transaction-contract change, so it doesn't need its own new ADR.
+
 ## Consequences
 
 - `ProfileSchema.validate` treats `pendingHatches`/`dragons`/`meta.nextEntityId` as

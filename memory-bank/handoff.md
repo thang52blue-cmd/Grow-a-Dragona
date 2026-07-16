@@ -96,7 +96,20 @@ through real client `Transaction:InvokeServer` calls end-to-end successfully.
    backward-compat default live: ~20 pre-existing dragons (hatched before this session) all show
    `Element="Fire"` — the additive default, not an error. **Backlog item 5 is now marked
    Rules/Transaction DONE + live-verified in `memory-bank/backlog.md`.** Re-ran all 3 CI gates green
-   after adding `AddTestFood`, then committed.
+   after adding `AddTestFood`, then committed (`ba0cf89`).
+9. User asked for hatching to be instant, no wait time at all. Set every `EggConfig.json` tier's
+   `hatchDurationSeconds` to `0` (was a 5s-1800s per-rarity placeholder ramp from ADR-002) — no
+   code change needed, since `StartHatchRules`/`ClaimHatchRules` already compute
+   `FinishAt = now + hatchDurationSeconds` and reject only `now < FinishAt`, so duration `0` makes
+   a hatch claimable the instant it starts. Documented as an addendum to
+   `adr/ADR-002-hatch-state-and-dragon-schema.md` (a tunable-value change, not a new schema/
+   contract decision) and in `src/shared/Data/README.md`. **Live-verified in Studio Play mode:**
+   Buy → Start Hatch → the pending hatch was already gone (`NoHatchInProgress` on a manual
+   re-claim attempt) within about the round-trip time of one more MCP tool call — roughly a
+   second of real latency, not the old 5s-30min wait. Hit one real sync gotcha along the way: a
+   Play session snapshots the Edit-mode DataModel at the moment Play starts, so a file edit made
+   right before pressing Play can race the sync — confirm the value read back correctly in Edit
+   mode first, *then* start Play, rather than editing and immediately starting Play back-to-back.
 
 **Deviations from the plan doc** (see `adr/ADR-003-feed-dragon-schema.md` for full reasoning):
 - No `FoodInventory = {FireFood, WaterFood, ...}` bucket — reused the existing generic
@@ -123,4 +136,9 @@ needs `export PATH="$PATH:/c/Users/Minh Anh/.rokit/bin"` prefixed before `ci/*.s
 environment. The Studio MCP's `execute_luau` on the `Server` datamodel does NOT reliably share
 Luau's `require()` module cache with the live running game — don't trust ad-hoc server-side state
 dumps via MCP for anything beyond read-only sanity checks; verify behavior through the actual
-remote/UI surface instead.
+remote/UI surface instead. **New this session:** after editing a data/script file, don't press Play
+immediately — Rojo syncs into the **Edit-mode** DataModel, and starting Play snapshots whatever the
+Edit-mode DataModel holds *at that moment*; if the sync hasn't landed yet, Play starts with stale
+data and there's no error to signal it. Confirm the new value reads back correctly in `Edit`
+datamodel via `execute_luau` first, *then* start Play — this cost one full extra Stop/Start cycle
+this session when skipped.

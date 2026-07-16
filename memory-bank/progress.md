@@ -172,3 +172,8 @@ None found in the tested Domain layer. Fixed this week (not still open):
   `execute_luau` state dumps as a verification method beyond quick read-only sanity checks; verify
   behavior through the real remote/UI surface instead (this is what caught the coroutine bug above
   cleanly, once the state-dump approach was abandoned).
+- **Found 2026-07-16:** pressing Play in Studio snapshots whatever the **Edit-mode** DataModel
+  currently holds; Rojo syncs file edits into Edit mode, not directly into an already-running Play
+  session. Editing a file and immediately starting Play can race that sync — Play silently starts
+  with the pre-edit data, no error. Confirm the new value via `execute_luau` on the `Edit`
+  datamodel first, then start Play.

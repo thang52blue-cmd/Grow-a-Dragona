@@ -12,7 +12,10 @@ Never hardcode these values in logic; require the file instead.
   placeholders. **Added 2026-07-15** for `BuyEggTransaction` (backlog item 2): each
   `hatchingTiers` entry also has `enabled` and `maxPurchaseAmount` — these two fields are
   engineering placeholders (not GDD-sourced), needed so the transaction has a per-tier on/off
-  switch and a single-request purchase cap; adjust once real balancing lands.
+  switch and a single-request purchase cap; adjust once real balancing lands. **Changed
+  2026-07-16:** every tier's `hatchDurationSeconds` is now `0` (was a 5s-1800s placeholder ramp) —
+  hatching is instant per explicit user request, matching `docs/prd/core-game-loop.md`. See
+  `adr/ADR-002-hatch-state-and-dragon-schema.md`'s "hatching made instant" addendum.
 - `DragonConfig.json` — `elements` (food category + synergy type per element) and `rarities`
   (production multiplier per rarity) are transcribed from GDD §3.1-§3.2. Real design values.
   **Added 2026-07-16** for Feed Dragon (backlog item 5): `elementOdds`, an equal-weight (20% each)
