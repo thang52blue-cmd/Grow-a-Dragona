@@ -160,14 +160,25 @@ smoke-tested):
   banking) against the real server clock path. No console errors. World-presence (Adult+Nest
   models, Assign/Collect prompts) is **not** built yet — deferred, see `backlog.md` item 6.
 
+- **Added 2026-07-17 (backlog item 10, ad-hoc) — Food Shop:** `src/shared/Domain/BuyFoodRules.luau`
+  (spec'd, mirrors `BuyEggRules.luau`), new `src/shared/Data/FoodShopConfig.json` price catalog
+  (flat 10-gold placeholder per item, no schema/ADR needed since Food already reuses generic
+  `Profile.inventory`), thin `src/server/Transactions/Economy/BuyFoodTransaction.luau`, and
+  `src/client/Shop/FoodShopUI.luau` (Element-grouped, scrollable, mirrors `EggShopUI.luau`).
+  **Live-verified in Studio, 2026-07-17:** direct `Transaction:InvokeServer` calls for buy/stack/
+  unknown-item/invalid-amount all correct; also click-tested the real UI via simulated mouse input
+  (open shop → click Buy on Fish → Gold `208,390→208,380`, status line confirmed). No console
+  errors.
+
 ## What's left
 
-Backlog items 1, 2, 4, 5 (including Phase B world-presence), and 6 (Rules/Transaction layer only)
-are done. Item 3 (engine-lane activation ADR) hasn't started. Items 7-9 haven't started. Item 6's
-world-presence (spawning the Adult Dragon + Nest, Assign/Collect `ProximityPrompt`s) remains open as
-a follow-up pass, same split as item 5's Phase B. The test-harness vertical slice's manual Studio
-click-test is done for both the original harness (2026-07-14/15) and the Buy Egg/Hatch/Feed
-transaction UIs (2026-07-15/16) — no known outstanding gaps in either.
+Backlog items 1, 2, 4, 5 (including Phase B world-presence), 6 (Rules/Transaction layer only), and
+10 (Food Shop) are done. Item 3 (engine-lane activation ADR) hasn't started. Items 7-9 haven't
+started. Item 6's world-presence (spawning the Adult Dragon + Nest, Assign/Collect
+`ProximityPrompt`s) remains open as a follow-up pass, same split as item 5's Phase B. The
+test-harness vertical slice's manual Studio click-test is done for the original harness
+(2026-07-14/15), the Buy Egg/Hatch/Feed transaction UIs (2026-07-15/16), and now the Food Shop UI
+(2026-07-17) — no known outstanding gaps in any of them.
 
 ## Known bugs
 

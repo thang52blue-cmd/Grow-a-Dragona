@@ -141,6 +141,28 @@
    DoD: spec proves a disconnect mid-transaction leaves the profile at either the pre- or post-commit
    snapshot, never a partial state; a duplicate-request-ID spec exists for every transaction above.
 
+10. ~~**Food Shop (Buy Food transaction)**~~ — **DONE 2026-07-17** (ad-hoc user request, not part
+    of the original README/GDD-derived list; not previously planned anywhere — `docs/prd/
+    core-game-loop.md` explicitly only called for "a temporary Food test source")
+    DoD: a player can buy every Food item (all 5 elements) for Gold from a Food Shop UI; spec proves
+    Gold deduction and inventory grant commit atomically, rejecting an unknown item or unaffordable
+    purchase without touching the profile.
+    `src/shared/Domain/BuyFoodRules.spec.luau` proves this (18 specs total now). New
+    `src/shared/Data/FoodShopConfig.json` (flat `{itemId: goldPrice}`, all 15 items priced at a flat
+    `10` gold placeholder — no GDD/PRD source specifies Food prices at all, confirmed by re-reading
+    the GDD). No schema/ADR needed: Food already reuses the generic `Profile.inventory` bucket
+    (ADR-003), so this only added a price catalog + `TransactionType.BuyFood = 11` +
+    `TransactionCode.InvalidFoodType = 13`. `ci/compile-check.sh` → `COMPILE_OK`, `ci/run-tests.sh
+    fast` → `PASSED` (18 specs), `ci/lint.sh` → `PASSED`. **Live-verified in Studio Play mode via
+    the Roblox Studio MCP:** real `Transaction:InvokeServer` calls for a successful buy, a
+    stacking re-buy, an unknown item (`InvalidFoodType`), and a negative amount (`InvalidAmount`)
+    all returned the correct codes/data; **also click-tested the actual `FoodShopUI`** (new
+    `src/client/Shop/FoodShopUI.luau`, grouped by Element in a `ScrollingFrame`, mirrors
+    `EggShopUI.luau`) via simulated mouse input — opened the shop, clicked "Buy" on Fish, confirmed
+    Gold went `208,390 → 208,380` and the status line read "Bought 1 Fish for 10 gold." live in the
+    UI, not just via direct remote calls. No console errors.
+
 Backlog seeded 2026-07-14 from `README.md`'s "Recommended first MVP slices" (items 1-2 and 4-9 map
 1:1 to README's list 1-8; item 3 is new, inserted to match the `(backlog #3)` references already
-written into `AGENTS.md`).
+written into `AGENTS.md`). Item 10 was added 2026-07-17, out of the original seeded sequence, per
+direct user request.

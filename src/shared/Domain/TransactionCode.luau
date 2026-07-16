@@ -13,6 +13,7 @@ local TransactionCode = {
 	InvalidEggType = 10,
 	EggDisabled = 11,
 	FeatureLocked = 12,
+	InvalidFoodType = 13,
 
 	InvalidAmount = 20,
 	NotEnoughCurrency = 21,

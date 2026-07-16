@@ -2,6 +2,96 @@
 
 > Always load, read first. Last session's state transfer. Overwritten each `end-session`.
 
+## Session: 2026-07-17 (continued) — Food Shop (Buy Food transaction, ad-hoc user request)
+
+**Verified state:** All three gates green: `ci/compile-check.sh` → `COMPILE_OK`, `ci/run-tests.sh
+fast` → `PASSED` (18 specs, up from 17), `ci/lint.sh` → `PASSED`. **Live-verified in Studio Play
+mode via the Roblox Studio MCP, including a real click-test of the new UI (not just the remote).**
+This work is **on top of** the item 6 session below (already committed as `a492c46`) and is **not
+yet committed itself**.
+
+**What happened:**
+
+1. User asked (in Vietnamese) to add per-element Food items to the shop so players can buy them.
+   Before implementing, checked whether this was already planned anywhere: it was not —
+   `memory-bank/backlog.md` had no item for it, `docs/prd/core-game-loop.md` only ever called for
+   "a temporary Food test source" (Buy Food explicitly deferred), and the GDD's Food section
+   (§3.1) has no price/cost numbers at all. This is genuine new scope, not a gap-fill.
+2. Determined no ADR/schema-approval gate applied here (unlike item 6 earlier today): Food already
+   reuses the generic `Profile.inventory` bucket per ADR-003's existing precedent, so adding a Buy
+   Food transaction needs no new persistent fields — only a new price config and transaction, same
+   shape as the already-existing `BuyEggTransaction`. Proceeded without stopping to ask, per the
+   user's stated preference for reasonable defaults over formal approval gates when nothing
+   schema-level is at stake — but flagged the one placeholder decision (price) prominently instead
+   of silently inventing it.
+3. Implemented, mirroring `BuyEggRules.luau`/`BuyEggTransaction.luau`/`EggShopUI.luau` structurally:
+   - `Types.FoodShopConfig = {[string]: number}`; `TransactionType.BuyFood = 11` (Economy group,
+     next to `BuyEgg=10`); `TransactionCode.InvalidFoodType = 13` (next in the 10-19 "type" block).
+   - `src/shared/Data/FoodShopConfig.json` — flat `{itemId: goldPrice}` for all 15 food items
+     across the 5 elements, **every price a flat 10-gold placeholder** (no design source exists).
+     Deliberately a separate file from `FoodConfig.json` rather than changing that file's shape —
+     `FeedDragonRules` already depends on `FoodConfig.json`'s existing `{[Element]: {string}}`
+     array shape and changing it would have rippled into unrelated Feed logic for no reason.
+   - `src/shared/Domain/BuyFoodRules.luau` (+ `.spec.luau`, 7 cases) — pure Validate/Stage/Commit,
+     structurally identical to `BuyEggRules.luau` (Currency.spend + Inventory.add in one Stage,
+     Commit applies both atomically).
+   - `src/server/Transactions/Economy/BuyFoodTransaction.luau` — thin handler, registered in
+     `init.server.luau` with a 10-per-2s rate limit (same as Feed/Assign/Collect).
+   - `src/client/Shop/FoodShopUI.luau` — new panel grouped by Element (`Elements.List` order) in a
+     `ScrollingFrame` (15 items don't fit a fixed-height frame like the 5-row Egg Shop does),
+     mirrors `EggShopUI.luau`'s row/price/Buy-button/status-line pattern exactly. Wired into
+     `init.client.luau` next to `EggShopUI.Init`.
+4. Ran all 3 CI gates; `stylua` flagged 1 file (spec-only formatting), auto-fixed, re-verified
+   green.
+5. **Live-verified in Studio Play mode via the Roblox Studio MCP:** confirmed new modules synced
+   into Edit-mode DataModel first, then started Play. Direct `Transaction:InvokeServer` calls: a
+   successful `ChiliPepper x3` buy (`TotalPrice=30`, stacked onto a pre-existing balance from an
+   earlier session's `AddTestFood` calls), a second buy stacking further, an unknown item ID →
+   `InvalidFoodType` (13), a negative Amount → `InvalidAmount` (20), and a different element's item
+   (`Honey`) succeeding independently. **Additionally click-tested the real UI** via
+   `user_mouse_input` + `screen_capture` (not done for any prior feature this thoroughly): clicked
+   the new "Food Shop" button, screenshotted the open panel (confirmed Element headers/prices/Buy
+   buttons render correctly, `ScrollingFrame` scrolls), clicked "Buy" on the Fish row, and
+   screenshotted again — Gold visibly went `208,390 → 208,380` and the status line read "Bought 1
+   Fish for 10 gold." live in the actual UI. `get_console_output` showed no errors both times.
+   Stopped Play mode afterward.
+6. Updated `memory-bank/backlog.md` (new item 10, `~~DONE~~`), `progress.md`, `activeContext.md`,
+   and this `handoff.md`. **Not yet committed** — user hadn't been asked yet as of this write-back.
+
+**Deviations / judgment calls (not user-specified, worth restating):**
+- Food prices are a flat 10-gold-per-item placeholder invented for this session — genuinely no
+  design source (GDD, PRD, or backlog) specifies any Food price. Needs real balancing before ship.
+- `TransactionType.BuyFood = 11` placed directly after `BuyEgg = 10` (both Economy-shop
+  transactions); `TransactionCode.InvalidFoodType = 13` placed in the existing 10-19 "invalid type"
+  block rather than starting a new numeric range.
+- No per-item `enabled`/`maxPurchaseAmount` fields were added to `FoodShopConfig.json` (unlike
+  `EggConfig.json`'s hatching tiers) — no stated requirement for disabling individual food items or
+  capping bulk purchases yet; added only what item 10's literal ask required. Revisit if the human
+  wants shop-side feature flags later.
+- Kept `FoodShopConfig.json` as a brand-new file rather than folding a price field into
+  `FoodConfig.json`'s existing per-element array shape, specifically to avoid touching
+  `FeedDragonRules.luau` (which already depends on that exact shape) for an unrelated feature.
+
+**Do next:**
+1. Ask the human whether to commit this Food Shop work (same pattern followed for item 6 earlier
+   today) before starting anything else.
+2. Backlog item 6's world-presence pass (Adult Dragon + Nest models, Assign/Collect prompts) is
+   still open — see this file's item-6 section below for the reuse plan
+   (`DragonSpawner`'s Nursery-lane pattern + `ReplicatedStorage.NestModels.Default`).
+3. Backlog item 7 (Sell Production Egg) is next per priority order otherwise.
+4. Real Food pricing needs balancing before ship (see Deviations above).
+
+**Environment note (unchanged, restate every session):** `rojo serve` does NOT reliably stay
+running across sessions — verify with `tasklist`/`curl localhost:34872/api/rojo` before assuming
+it's up. Bash tool needs `export PATH="$PATH:/c/Users/Minh Anh/.rokit/bin"` prefixed before
+`ci/*.sh` calls. Confirm new files sync into the **Edit-mode** DataModel via `search_game_tree`
+before starting Play. The `Transaction` remote requires a numeric `requestId`. **New this session:**
+`mcp__Roblox_Studio__user_mouse_input` (with `instance_path`, e.g.
+`LocalPlayer.PlayerGui.FoodShopGui.OpenFoodShopButton`) combined with `screen_capture` reliably
+click-tests a UI end-to-end in Play mode (not just its underlying remote) — use this for future
+UI-facing features, it caught nothing wrong here but is a strictly stronger verification than
+calling `Transaction:InvokeServer` directly from a script.
+
 ## Session: 2026-07-17 — Backlog item 6: Assign Producer / Collect Nest (Rules/Transaction layer)
 
 **Verified state:** All three gates green: `ci/compile-check.sh` → `COMPILE_OK`, `ci/run-tests.sh

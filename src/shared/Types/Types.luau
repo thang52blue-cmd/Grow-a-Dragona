@@ -38,6 +38,8 @@ export type GrowthStage = "Baby_0" | "Baby_1" | "Baby_2" | "Baby_3" | "Adult"
 
 export type FoodConfig = { [Element]: { string } }
 
+export type FoodShopConfig = { [string]: number }
+
 export type EconomyConfig = {
 	startingGold: number,
 	maxGold: number,

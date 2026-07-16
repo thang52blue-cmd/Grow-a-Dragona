@@ -3,6 +3,7 @@
 -- upcoming backlog items so payload shapes/ids don't need to change later.
 local TransactionType = {
 	BuyEgg = 10,
+	BuyFood = 11,
 
 	StartHatch = 20,
 	ClaimHatch = 21,

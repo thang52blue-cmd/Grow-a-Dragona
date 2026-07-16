@@ -5,6 +5,7 @@ local player = Players.LocalPlayer
 local remotesFolder = ReplicatedStorage:WaitForChild("Remotes")
 
 local EggShopUI = require(script.Shop.EggShopUI)
+local FoodShopUI = require(script.Shop.FoodShopUI)
 local EggInventoryUI = require(script.Inventory.EggInventoryUI)
 local RequestIdGenerator = require(script.RequestIdGenerator)
 local HatchCountdownController = require(script.Hatch.HatchCountdownController)
@@ -82,6 +83,7 @@ end
 (remotesFolder:WaitForChild("ProfileUpdated") :: RemoteEvent).OnClientEvent:Connect(render)
 
 EggShopUI.Init(player, remotesFolder)
+FoodShopUI.Init(player, remotesFolder)
 EggInventoryUI.Init(player, remotesFolder)
 HatchCountdownController.Init()
 AutoClaimController.Init(remotesFolder, RequestIdGenerator, function()

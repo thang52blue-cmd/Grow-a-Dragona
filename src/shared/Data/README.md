@@ -31,6 +31,14 @@ Never hardcode these values in logic; require the file instead.
   starting Gold amount (§2.1 step 1); 0 is the neutral default, not a sourced design value.
   `maxGold` and `maxInventoryStack` are engineering safety caps (keep numbers away from float-
   precision and DataStore edge cases), not GDD balance values.
+- `FoodShopConfig.json` — **Added 2026-07-17** for the Food Shop (a new feature, not previously
+  planned in `docs/prd/core-game-loop.md`, which only called for "a temporary Food test source").
+  Flat `{ itemId: goldPrice }` map covering all 15 items across `FoodConfig.json`'s 5 elements.
+  Every price is a flat `10` gold placeholder — no GDD or PRD source specifies Food prices at all
+  (confirmed by re-reading the GDD's Food section); adjust once real balancing lands. Kept as a
+  separate file rather than adding a price field onto `FoodConfig.json`'s per-element item lists,
+  since `FeedDragonRules` already depends on that file's existing `{ [Element]: {string} }` shape
+  and changing it would ripple into unrelated Feed logic.
 - `ProductionConfig.json` — **Added 2026-07-17** for Farm Slot / Production (backlog item 6):
   `productionIntervalSeconds: 180` and `nestCapacity: 12` are transcribed verbatim from
   `docs/prd/core-game-loop.md`'s stated prototype numbers. `startingFarmSlots: 3` is an engineering
