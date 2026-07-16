@@ -31,3 +31,8 @@ Never hardcode these values in logic; require the file instead.
   starting Gold amount (§2.1 step 1); 0 is the neutral default, not a sourced design value.
   `maxGold` and `maxInventoryStack` are engineering safety caps (keep numbers away from float-
   precision and DataStore edge cases), not GDD balance values.
+- `ProductionConfig.json` — **Added 2026-07-17** for Farm Slot / Production (backlog item 6):
+  `productionIntervalSeconds: 180` and `nestCapacity: 12` are transcribed verbatim from
+  `docs/prd/core-game-loop.md`'s stated prototype numbers. `startingFarmSlots: 3` is an engineering
+  placeholder (the PRD says "add unlocked production slots" but never specifies how many) — see
+  `adr/ADR-004-farm-slot-and-nest-schema.md`.

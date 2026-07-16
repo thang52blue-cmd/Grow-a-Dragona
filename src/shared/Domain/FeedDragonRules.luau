@@ -87,6 +87,7 @@ function FeedDragonRules.Stage(
 		GrowthStage = newGrowthStage,
 		FeedCount = newFeedCount,
 		HatchedAt = dragon.HatchedAt,
+		AssignedSlotId = dragon.AssignedSlotId,
 	}
 
 	return true,

@@ -21,6 +21,8 @@ local BuyEggTransaction = require(script.Transactions.Economy.BuyEggTransaction)
 local StartHatchTransaction = require(script.Transactions.Hatching.StartHatchTransaction)
 local ClaimHatchTransaction = require(script.Transactions.Hatching.ClaimHatchTransaction)
 local FeedDragonTransaction = require(script.Transactions.Dragon.FeedDragonTransaction)
+local AssignProducerTransaction = require(script.Transactions.Production.AssignProducerTransaction)
+local CollectNestTransaction = require(script.Transactions.Production.CollectNestTransaction)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local TransactionType = require(Shared.Domain.TransactionType)
@@ -41,6 +43,10 @@ TransactionService.RegisterHandler(TransactionType.ClaimHatch, ClaimHatchTransac
 TransactionService.SetTypeRateLimit(TransactionType.ClaimHatch, 10, 2)
 TransactionService.RegisterHandler(TransactionType.FeedDragon, FeedDragonTransaction)
 TransactionService.SetTypeRateLimit(TransactionType.FeedDragon, 10, 2)
+TransactionService.RegisterHandler(TransactionType.AssignProducer, AssignProducerTransaction)
+TransactionService.SetTypeRateLimit(TransactionType.AssignProducer, 10, 2)
+TransactionService.RegisterHandler(TransactionType.CollectNest, CollectNestTransaction)
+TransactionService.SetTypeRateLimit(TransactionType.CollectNest, 10, 2)
 
 local remotesFolder = RemotesSetup.Init()
 
@@ -49,6 +55,8 @@ local addTestGold = remotesFolder:WaitForChild("AddTestGold") :: RemoteEvent
 local addTestGold10000 = remotesFolder:WaitForChild("AddTestGold10000") :: RemoteEvent
 local spendTestGold = remotesFolder:WaitForChild("SpendTestGold") :: RemoteEvent
 local addTestFood = remotesFolder:WaitForChild("AddTestFood") :: RemoteEvent
+local addTestDragon = remotesFolder:WaitForChild("AddTestDragon") :: RemoteEvent
+local fastForwardProduction = remotesFolder:WaitForChild("FastForwardProduction") :: RemoteEvent
 local transactionRemote = remotesFolder:WaitForChild("Transaction") :: RemoteFunction
 
 local function snapshotOf(player: Player): {
@@ -202,6 +210,53 @@ addTestFood.OnServerEvent:Connect(function(player: Player)
 		end
 	end
 	pushSnapshot(player, lastErr)
+end)
+
+-- Grants an already-Adult, already-unassigned dragon -- backlog item 6 (Assign Producer / Collect
+-- Nest) has no real acquisition path to an Adult dragon fast enough for manual testing (feeding a
+-- Baby 4 times first). Same manual-test-lever pattern as AddTestFood above.
+addTestDragon.OnServerEvent:Connect(function(player: Player)
+	local profile = DataService.Get(player.UserId)
+	if not profile then
+		pushSnapshot(player, "profile not loaded")
+		return
+	end
+
+	local dragonId = tostring(profile.meta.nextEntityId)
+	profile.dragons[dragonId] = {
+		Id = dragonId,
+		Rarity = "Common",
+		Element = "Fire",
+		GrowthStage = "Adult",
+		FeedCount = 4,
+		HatchedAt = os.time(),
+		AssignedSlotId = nil,
+	}
+	profile.meta.nextEntityId += 1
+	pushSnapshot(player, nil)
+end)
+
+-- Rewinds a Farm Slot's ProductionStartedAt so completed-cycle math can be exercised without
+-- waiting the real 180s production interval. Test-only lever, same rationale as AddTestFood/
+-- AddTestDragon -- never touches gold/inventory, only lets a real CollectNestTransaction see
+-- elapsed time that has genuinely already been recorded on the slot.
+fastForwardProduction.OnServerEvent:Connect(function(player: Player, slotIdRaw: unknown, secondsBackRaw: unknown)
+	local profile = DataService.Get(player.UserId)
+	if not profile then
+		pushSnapshot(player, "profile not loaded")
+		return
+	end
+
+	local slotId = tonumber(slotIdRaw :: any)
+	local secondsBack = tonumber(secondsBackRaw :: any)
+	local slot = slotId and profile.farmSlots[slotId]
+	if not slot or not slot.ProductionStartedAt or not secondsBack then
+		pushSnapshot(player, "invalid FastForwardProduction request")
+		return
+	end
+
+	slot.ProductionStartedAt -= secondsBack
+	pushSnapshot(player, nil)
 end)
 
 transactionRemote.OnServerInvoke = function(player: Player, requestId: unknown, typeId: unknown, payload: unknown)

@@ -83,6 +83,7 @@ function ClaimHatchRules.Stage(
 		GrowthStage = "Baby_0",
 		FeedCount = 0,
 		HatchedAt = now,
+		AssignedSlotId = nil,
 	}
 
 	return true,

@@ -6,10 +6,24 @@ local passed = Check.runAll({
 	{
 		name = "default profile uses the given starting gold and empty inventory",
 		run = function()
-			local profile = ProfileSchema.default(50)
+			local profile = ProfileSchema.default(50, 3)
 			Check.equal(profile.gold, 50)
 			Check.equal(next(profile.inventory), nil)
 			Check.equal(profile.meta.schemaVersion, ProfileSchema.CURRENT_SCHEMA_VERSION)
+		end,
+	},
+	{
+		name = "default profile pre-populates the given number of empty farm slots and zero production eggs",
+		run = function()
+			local profile = ProfileSchema.default(50, 3)
+			Check.equal(profile.farmSlots[1].SlotId, 1)
+			Check.equal(profile.farmSlots[1].AssignedDragonUID, nil)
+			Check.equal(profile.farmSlots[1].UncollectedEggCount, 0)
+			Check.equal(profile.farmSlots[1].IsProductionPaused, false)
+			Check.equal(profile.farmSlots[3].SlotId, 3)
+			Check.equal(profile.farmSlots[4], nil)
+			Check.equal(profile.productionEggInventory.Normal, 0)
+			Check.equal(profile.productionEggInventory.Golden, 0)
 		end,
 	},
 	{
@@ -155,6 +169,68 @@ local passed = Check.runAll({
 			Check.isFalse(withDragon({ GrowthStage = "NotAStage" }))
 			Check.isFalse(withDragon({ FeedCount = -1 }))
 			Check.isFalse(withDragon({ FeedCount = 1.5 }))
+			Check.isFalse(withDragon({ AssignedSlotId = "1" }))
+		end,
+	},
+	{
+		name = "validate defaults missing farmSlots/productionEggInventory to N fresh slots and zero eggs",
+		run = function()
+			local ok, profile = ProfileSchema.validate({
+				gold = 0,
+				inventory = {},
+				meta = { schemaVersion = 1, session = {} },
+			}, 3)
+			Check.isTrue(ok)
+			Check.equal(profile.farmSlots[1].SlotId, 1)
+			Check.equal(profile.farmSlots[3].SlotId, 3)
+			Check.equal(profile.farmSlots[4], nil)
+			Check.equal(profile.productionEggInventory.Normal, 0)
+		end,
+	},
+	{
+		name = "validate accepts well-formed farmSlots/productionEggInventory and preserves an assigned dragon",
+		run = function()
+			local ok, profile = ProfileSchema.validate({
+				gold = 0,
+				inventory = {},
+				dragons = { ["1"] = { Id = "1", Rarity = "Common", HatchedAt = 90, AssignedSlotId = 1 } },
+				farmSlots = {
+					[1] = {
+						SlotId = 1,
+						AssignedDragonUID = "1",
+						ProductionStartedAt = 500,
+						UncollectedEggCount = 4,
+						IsProductionPaused = false,
+					},
+				},
+				productionEggInventory = { Normal = 7, Mini = 0, Heavy = 0, Giant = 0, Golden = 0 },
+				meta = { schemaVersion = 1, session = {} },
+			})
+			Check.isTrue(ok)
+			Check.equal(profile.dragons["1"].AssignedSlotId, 1)
+			Check.equal(profile.farmSlots[1].AssignedDragonUID, "1")
+			Check.equal(profile.farmSlots[1].UncollectedEggCount, 4)
+			Check.equal(profile.productionEggInventory.Normal, 7)
+		end,
+	},
+	{
+		name = "validate rejects a malformed farmSlots or productionEggInventory entry",
+		run = function()
+			local badSlot = ProfileSchema.validate({
+				gold = 0,
+				inventory = {},
+				farmSlots = { [1] = { SlotId = 1, UncollectedEggCount = -1, IsProductionPaused = false } },
+				meta = { schemaVersion = 1, session = {} },
+			})
+			Check.isFalse(badSlot)
+
+			local badInventory = ProfileSchema.validate({
+				gold = 0,
+				inventory = {},
+				productionEggInventory = { Normal = "not a number" },
+				meta = { schemaVersion = 1, session = {} },
+			})
+			Check.isFalse(badInventory)
 		end,
 	},
 	{
@@ -212,7 +288,7 @@ local passed = Check.runAll({
 	{
 		name = "default profile has no lastPosition, and validate defaults a missing lastPosition to nil",
 		run = function()
-			Check.equal(ProfileSchema.default(0).lastPosition, nil)
+			Check.equal(ProfileSchema.default(0, 3).lastPosition, nil)
 
 			local ok, profile = ProfileSchema.validate({
 				gold = 0,

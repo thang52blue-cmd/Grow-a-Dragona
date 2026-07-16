@@ -8,6 +8,7 @@ local TransactionType = {
 	ClaimHatch = 21,
 
 	FeedDragon = 30,
+	AssignProducer = 31,
 
 	CollectNest = 40,
 	SellProductionEgg = 41,

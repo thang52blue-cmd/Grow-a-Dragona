@@ -71,6 +71,29 @@ export type DragonRecord = {
 	GrowthStage: GrowthStage,
 	FeedCount: number,
 	HatchedAt: number,
+	AssignedSlotId: number?,
+}
+
+export type FarmSlot = {
+	SlotId: number,
+	AssignedDragonUID: string?,
+	ProductionStartedAt: number?,
+	UncollectedEggCount: number,
+	IsProductionPaused: boolean,
+}
+
+export type ProductionEggInventory = {
+	Normal: number,
+	Mini: number,
+	Heavy: number,
+	Giant: number,
+	Golden: number,
+}
+
+export type ProductionConfig = {
+	productionIntervalSeconds: number,
+	nestCapacity: number,
+	startingFarmSlots: number,
 }
 
 export type Session = {
@@ -89,6 +112,8 @@ export type Profile = {
 	inventory: Inventory,
 	pendingHatches: { [string]: PendingHatch },
 	dragons: { [string]: DragonRecord },
+	farmSlots: { [number]: FarmSlot },
+	productionEggInventory: ProductionEggInventory,
 	lastPosition: Position?,
 	meta: ProfileMeta,
 }

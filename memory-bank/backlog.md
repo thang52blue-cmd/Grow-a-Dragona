@@ -105,9 +105,29 @@
    1/4` and its `FeedCount` attribute updated to `1` (no despawn, as expected below Adult). No
    console errors from game code.
 
-6. **Assign Producer and Collect Nest transactions**
-   DoD: spec proves only Adult dragons can be assigned to produce; spec proves Collect advances the
-   production cycle and grants output atomically.
+6. ~~**Assign Producer and Collect Nest transactions**~~ — **DONE 2026-07-17** (Rules/Transaction
+   layer, live-verified; world-presence not yet built)
+   DoD met: `src/shared/Domain/AssignProducerRules.spec.luau` proves only an owned Adult, unassigned
+   dragon can be assigned to an empty slot (rejects `DragonNotAdult`/`DragonAlreadyAssigned`/
+   `SlotOccupied`/`SlotNotFound`); `src/shared/Domain/CollectNestRules.spec.luau` +
+   `ProductionRules.spec.luau` prove Collect advances the production cycle (timestamp-based,
+   capacity-capped at 12, no banked excess cycles) and grants `ProductionEggInventory.Normal`
+   atomically in one commit, rejecting an empty Nest (`NestEmpty`). New schema approved via
+   `adr/ADR-004-farm-slot-and-nest-schema.md` (`DragonRecord.AssignedSlotId`, `Profile.farmSlots`
+   /`productionEggInventory`, `ProductionConfig.json`). `ci/compile-check.sh` → `COMPILE_OK`,
+   `ci/run-tests.sh fast` → `PASSED` (17 specs), `ci/lint.sh` → `PASSED`. **Live-verified in Studio
+   Play mode via the Roblox Studio MCP:** real `Transaction:InvokeServer` calls assigned a test
+   Adult dragon to slot 1; re-assigning a different dragon to the same slot, re-assigning the same
+   dragon elsewhere, assigning a Baby, and assigning to an unknown slot all returned the correct
+   codes; `FastForwardProduction` (new test-only remote, mirrors `AddTestFood`'s pattern) rewound
+   `ProductionStartedAt` by 630s (3.5 intervals) and Collect correctly granted exactly 3 eggs
+   (floor, not 3.5); a second immediate Collect returned `NestEmpty`; rewinding by 9000s (50
+   intervals) and collecting capped at exactly 12 eggs, not 50, confirming no excess-cycle banking;
+   no console errors. **World-presence (spawning the Adult Dragon + Nest models, Assign/Collect
+   `ProximityPrompt`s) is explicitly deferred to a follow-up pass** — same split as item 5's
+   Rules/Transaction-then-Phase-B pattern; see `adr/ADR-004-farm-slot-and-nest-schema.md`'s
+   Consequences section. Starting farm-slot count (3, all pre-unlocked) is an engineering
+   placeholder, not GDD-sourced.
 
 7. **Sell Production Egg transaction**
    DoD: spec proves inventory removal and Gold grant commit atomically; spec proves the Egg Variant

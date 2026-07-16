@@ -6,6 +6,7 @@ local ProfileSchema = require(Shared.Domain.ProfileSchema)
 local SessionLock = require(Shared.Domain.SessionLock)
 local Types = require(Shared.Types.Types)
 local EconomyConfig = require(Shared.Data.EconomyConfig) :: Types.EconomyConfig
+local ProductionConfig = require(Shared.Data.ProductionConfig) :: Types.ProductionConfig
 
 local PROFILE_STORE_NAME = "PlayerProfiles_v1"
 local SESSION_LOCK_TIMEOUT_SECONDS = 30
@@ -43,9 +44,9 @@ function DataService.Load(userId: number, jobId: string): (boolean, Types.Profil
 
 	local profile: Types.Profile
 	if raw == nil then
-		profile = ProfileSchema.default(EconomyConfig.startingGold)
+		profile = ProfileSchema.default(EconomyConfig.startingGold, ProductionConfig.startingFarmSlots)
 	else
-		local validOk, validated, validateErr = ProfileSchema.validate(raw)
+		local validOk, validated, validateErr = ProfileSchema.validate(raw, ProductionConfig.startingFarmSlots)
 		if not validOk then
 			return false, nil, "corrupt profile: " .. tostring(validateErr)
 		end

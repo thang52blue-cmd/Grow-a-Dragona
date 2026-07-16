@@ -22,12 +22,31 @@ local ProfileSchema = {}
 
 ProfileSchema.CURRENT_SCHEMA_VERSION = 1
 
-function ProfileSchema.default(startingGold: number): Types.Profile
+local function defaultFarmSlots(startingFarmSlots: number): { [number]: Types.FarmSlot }
+	local slots: { [number]: Types.FarmSlot } = {}
+	for slotId = 1, startingFarmSlots do
+		slots[slotId] = {
+			SlotId = slotId,
+			AssignedDragonUID = nil,
+			ProductionStartedAt = nil,
+			UncollectedEggCount = 0,
+			IsProductionPaused = false,
+		}
+	end
+	return slots
+end
+
+local ZERO_PRODUCTION_EGG_INVENTORY: Types.ProductionEggInventory =
+	{ Normal = 0, Mini = 0, Heavy = 0, Giant = 0, Golden = 0 }
+
+function ProfileSchema.default(startingGold: number, startingFarmSlots: number): Types.Profile
 	return {
 		gold = startingGold,
 		inventory = {},
 		pendingHatches = {},
 		dragons = {},
+		farmSlots = defaultFarmSlots(startingFarmSlots),
+		productionEggInventory = table.clone(ZERO_PRODUCTION_EGG_INVENTORY),
 		lastPosition = nil,
 		meta = {
 			schemaVersion = ProfileSchema.CURRENT_SCHEMA_VERSION,
@@ -40,7 +59,7 @@ function ProfileSchema.default(startingGold: number): Types.Profile
 	}
 end
 
-function ProfileSchema.validate(data: unknown): (boolean, Types.Profile?, string?)
+function ProfileSchema.validate(data: unknown, startingFarmSlots: number?): (boolean, Types.Profile?, string?)
 	if type(data) ~= "table" then
 		return false, nil, "profile is not a table"
 	end
@@ -109,17 +128,16 @@ function ProfileSchema.validate(data: unknown): (boolean, Types.Profile?, string
 				or type(entry.HatchedAt) ~= "number"
 				or (entry.Element ~= nil and not Elements.IsValid(entry.Element))
 				or (entry.GrowthStage ~= nil and not VALID_GROWTH_STAGES[entry.GrowthStage])
-				or (
-					entry.FeedCount ~= nil
-					and (type(entry.FeedCount) ~= "number" or entry.FeedCount < 0 or entry.FeedCount % 1 ~= 0)
-				)
+				or (entry.FeedCount ~= nil and (type(entry.FeedCount) ~= "number" or entry.FeedCount < 0 or entry.FeedCount % 1 ~= 0))
+				or (entry.AssignedSlotId ~= nil and type(entry.AssignedSlotId) ~= "number")
 			then
 				return false, nil, "invalid dragons entry for " .. tostring(dragonId)
 			end
 			-- Element/GrowthStage/FeedCount are additive (backlog item 5, see
 			-- adr/ADR-003-feed-dragon-schema.md) -- a dragon saved before this change has none of
 			-- them; default to Fire/Baby_0/0 rather than reject, same additive-field precedent as
-			-- pendingHatches.Position.
+			-- pendingHatches.Position. AssignedSlotId is additive too (backlog item 6, see
+			-- adr/ADR-004-farm-slot-and-nest-schema.md) -- defaults to nil (unassigned).
 			dragons[dragonId] = {
 				Id = entry.Id,
 				Rarity = entry.Rarity,
@@ -127,8 +145,69 @@ function ProfileSchema.validate(data: unknown): (boolean, Types.Profile?, string
 				GrowthStage = if entry.GrowthStage then entry.GrowthStage else "Baby_0",
 				FeedCount = if entry.FeedCount then entry.FeedCount else 0,
 				HatchedAt = entry.HatchedAt,
+				AssignedSlotId = entry.AssignedSlotId,
 			}
 		end
+	end
+
+	-- farmSlots/productionEggInventory are additive (backlog item 6, see
+	-- adr/ADR-004-farm-slot-and-nest-schema.md) -- a profile saved before this change has neither;
+	-- absence defaults to a fresh set of slots / all-zero inventory rather than failing validation.
+	local farmSlotsRaw = rawProfile.farmSlots
+	local farmSlots: { [number]: Types.FarmSlot }
+	if farmSlotsRaw == nil then
+		farmSlots = defaultFarmSlots(startingFarmSlots or 0)
+	else
+		if type(farmSlotsRaw) ~= "table" then
+			return false, nil, "invalid farmSlots"
+		end
+		farmSlots = {}
+		for slotIdRaw, entry in farmSlotsRaw :: { [any]: any } do
+			local slotId = tonumber(slotIdRaw)
+			if
+				type(slotId) ~= "number"
+				or type(entry) ~= "table"
+				or entry.SlotId ~= slotId
+				or (entry.AssignedDragonUID ~= nil and type(entry.AssignedDragonUID) ~= "string")
+				or (entry.ProductionStartedAt ~= nil and type(entry.ProductionStartedAt) ~= "number")
+				or type(entry.UncollectedEggCount) ~= "number"
+				or entry.UncollectedEggCount < 0
+				or entry.UncollectedEggCount % 1 ~= 0
+				or type(entry.IsProductionPaused) ~= "boolean"
+			then
+				return false, nil, "invalid farmSlots entry for " .. tostring(slotIdRaw)
+			end
+			farmSlots[slotId] = {
+				SlotId = slotId,
+				AssignedDragonUID = entry.AssignedDragonUID,
+				ProductionStartedAt = entry.ProductionStartedAt,
+				UncollectedEggCount = entry.UncollectedEggCount,
+				IsProductionPaused = entry.IsProductionPaused,
+			}
+		end
+	end
+
+	local productionEggInventoryRaw = rawProfile.productionEggInventory
+	local productionEggInventory: Types.ProductionEggInventory
+	if productionEggInventoryRaw == nil then
+		productionEggInventory = table.clone(ZERO_PRODUCTION_EGG_INVENTORY)
+	else
+		if type(productionEggInventoryRaw) ~= "table" then
+			return false, nil, "invalid productionEggInventory"
+		end
+		local raw = productionEggInventoryRaw :: { [string]: any }
+		local built: { [string]: number } = {}
+		for _, variant in { "Normal", "Mini", "Heavy", "Giant", "Golden" } do
+			local quantity = raw[variant]
+			if quantity == nil then
+				quantity = 0
+			end
+			if type(quantity) ~= "number" or quantity < 0 or quantity % 1 ~= 0 then
+				return false, nil, "invalid productionEggInventory." .. variant
+			end
+			built[variant] = quantity
+		end
+		productionEggInventory = built :: any
 	end
 
 	local lastPosition: Types.Position? = nil
@@ -167,6 +246,8 @@ function ProfileSchema.validate(data: unknown): (boolean, Types.Profile?, string
 			inventory = inventory :: Types.Inventory,
 			pendingHatches = pendingHatches,
 			dragons = dragons,
+			farmSlots = farmSlots,
+			productionEggInventory = productionEggInventory,
 			lastPosition = lastPosition,
 			meta = {
 				schemaVersion = meta.schemaVersion,

@@ -26,6 +26,12 @@ local TransactionCode = {
 	DragonAlreadyAdult = 41,
 	MissingFood = 42,
 
+	SlotNotFound = 43,
+	SlotOccupied = 44,
+	DragonNotAdult = 45,
+	DragonAlreadyAssigned = 46,
+	NestEmpty = 47,
+
 	InternalError = 100,
 }
 

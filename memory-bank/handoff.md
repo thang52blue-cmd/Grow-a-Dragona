@@ -2,109 +2,116 @@
 
 > Always load, read first. Last session's state transfer. Overwritten each `end-session`.
 
-## Session: 2026-07-16 (continued) — Phase B: Baby Dragon world-presence, live-verified
+## Session: 2026-07-17 — Backlog item 6: Assign Producer / Collect Nest (Rules/Transaction layer)
 
 **Verified state:** All three gates green: `ci/compile-check.sh` → `COMPILE_OK`, `ci/run-tests.sh
-fast` → `PASSED` (14 specs, unchanged — this is engine-glue, no new pure Domain logic), `ci/lint.sh`
-→ `PASSED`. **Live-verified in Studio Play mode via the Roblox Studio MCP.**
+fast` → `PASSED` (17 specs, up from 14 — 3 new pure Domain spec files), `ci/lint.sh` → `PASSED`
+(after `stylua` auto-formatted 3 files it flagged). **Live-verified in Studio Play mode via the
+Roblox Studio MCP.**
 
 **What happened:**
 
-1. User asked to restart the Rojo server (it wasn't running); restarted `rojo serve` in the
-   background, confirmed it listens on `localhost:34872`.
-2. User asked to continue unfinished work. Per `memory-bank/handoff.md`'s prior "Do next" list,
-   picked Phase B of `docs/prd/core-game-loop.md`: Baby Dragon world-presence, the one remaining
-   gap in backlog item 5 (a player still had no in-game way to reach `FeedDragonTransaction`).
-3. Read the existing `HatchSpawner.luau`/`HatchCountdownController.luau`/`AutoClaimController.luau`
-   pattern (world-visible hatching-egg decoration, tag-based client controllers, respawn-on-rejoin)
-   and reused it directly rather than inventing a new one.
-4. Implemented:
-   - `src/server/Services/DragonSpawner.luau` — spawns a clone of
-     `ReplicatedStorage.DragonModels.Baby` per non-Adult owned dragon into
-     `Workspace.Nursery.<userId>` (a placeholder MVP location at `Vector3(60, 3, -40)`, one "lane"
-     per player offset by 25 studs, chosen clear of `Workspace.SpawnLocation` and well within
-     `Workspace.Baseplate`'s 2048×16×2048 bounds — confirmed via the Studio MCP's
-     `inspect_instance` before picking the numbers). Each clone gets `DragonUID`/`Element`/
-     `FeedCount` attributes, a `FeedPrompt` `ProximityPrompt` (`ActionText="Feed"`,
-     `ObjectText="<Element> Dragon"`), and a `FeedStatus` billboard showing `Fed X/4`, and is tagged
-     `BabyDragon` via `CollectionService`. `RespawnAllBaby`/`DespawnAll`/`Despawn`/
-     `UpdateFeedCount` mirror `HatchSpawner`'s API shape.
-   - `src/client/Dragon/FeedPromptController.luau` — connects every `BabyDragon`-tagged model's
-     `ProximityPrompt.Triggered` to `Transaction:InvokeServer(requestId, TransactionType.FeedDragon,
-     {DragonUID = ...})`, sending only `DragonUID` per the plan doc. Also listens to the existing
-     `ProfileUpdated` snapshot (same one every other UI module already reads) to toggle the
-     prompt's `ActionText` to `"Need Food"` when the player owns none of the dragon's Element's 3
-     food items — purely presentational, never mutates persistent state.
-   - Wired both into `init.server.luau`: `DragonSpawner.RespawnAllBaby` alongside
-     `HatchSpawner.RespawnAllPending` on character load; `DragonSpawner.DespawnAll` alongside
-     `HatchSpawner.DespawnAll` on `PlayerRemoving`; a successful `ClaimHatch` now also looks up the
-     newly-committed dragon record (`profile.dragons[result.Data.DragonId]`, same key as
-     `DragonUID`) and calls `DragonSpawner.Spawn`; a successful `FeedDragon` calls
-     `DragonSpawner.Despawn` when `result.Data.BecameAdult` is true, otherwise
-     `DragonSpawner.UpdateFeedCount`. Registered `FeedPromptController.Init` in
-     `src/client/init.client.luau` next to the other controllers.
-   - Deliberately did **not** spawn an Adult Dragon model on transform — per the plan doc's
-     Recommended MVP rule, Adults get no world presence until assigned to a Farm Slot (backlog
-     item 6), so the Baby model is simply despawned on `BecameAdult=true` and nothing replaces it
-     yet.
-5. Ran all 3 CI gates green (no new pure-Domain logic, so `ci/run-tests.sh fast` stayed at 14
-   specs — this feature is entirely engine-glue by AGENTS.md's classification).
+1. User asked to restart the Rojo server (it wasn't running) and continue work. Restarted `rojo
+   serve` in the background, confirmed it's listening on `localhost:34872` (`curl`/`tasklist` both
+   confirmed a real `rojo.exe` process and a valid `/api/rojo` response for project `GrowADragona`).
+2. Per `activeContext.md`'s "next task", picked backlog item 6 (Assign Producer and Collect Nest
+   transactions). This changes the save schema (`DragonRecord.AssignedSlotId`, two new `Profile`
+   sections), which `AGENTS.md` and `adr/ADR-003-feed-dragon-schema.md` both explicitly gate on
+   human approval + an ADR — stopped and asked before writing any code.
+3. Drafted `adr/ADR-004-farm-slot-and-nest-schema.md` from `docs/prd/core-game-loop.md`'s
+   Persistent Data Model / Server Services sections (already the approved reference spec), flagged
+   the one open design item (starting Farm Slot count — the PRD never specifies a number) as my own
+   placeholder proposal (3, all pre-unlocked), and asked the user via `AskUserQuestion`. **Approved
+   as proposed.**
+4. Implemented, in order:
+   - `Types.luau`: `DragonRecord.AssignedSlotId: number?`, new `FarmSlot`/`ProductionEggInventory`/
+     `ProductionConfig` types, `Profile.farmSlots`/`productionEggInventory`.
+   - `TransactionType.AssignProducer = 31`; `TransactionCode`s `SlotNotFound=43`,
+     `SlotOccupied=44`, `DragonNotAdult=45`, `DragonAlreadyAssigned=46`, `NestEmpty=47`.
+   - `src/shared/Data/ProductionConfig.json` (180s interval, 12-egg capacity, 3 starting slots) +
+     README entry.
+   - `ProfileSchema.luau`: `default()` now takes `startingFarmSlots` and pre-populates that many
+     empty slots; `validate()` now takes an optional `startingFarmSlots` for backward-compat
+     defaulting, and validates/defaults `farmSlots`/`productionEggInventory`/`AssignedSlotId` as
+     additive fields (same precedent as every prior additive field). Updated call sites
+     (`DataService.luau`) and existing specs (`ProfileSchema.spec.luau`) for the new signature,
+     plus added new spec cases for the new fields.
+   - `FeedDragonRules.luau`/`ClaimHatchRules.luau`: preserve/default `AssignedSlotId` when writing a
+     `DragonRecord` (Feed) or creating one (Claim, defaults `nil`) — required now that the field is
+     part of the type.
+   - New pure Domain modules (all spec'd): `ProductionRules.luau` (timestamp→completed-cycles
+     calc, the PRD's suggested formula verbatim, capacity-capped, no excess-cycle banking),
+     `AssignProducerRules.luau`, `CollectNestRules.luau` (calls `ProductionRules.Advance` before
+     reading a slot, so a Collect never misses cycles completed since the last write).
+   - Thin handlers `src/server/Transactions/Production/AssignProducerTransaction.luau` +
+     `CollectNestTransaction.luau` (removed the folder's `.gitkeep`), registered both in
+     `init.server.luau` with per-type rate limits (10/2s, matching Feed/Claim).
+   - Test-only harnesses in `RemotesSetup.luau`/`init.server.luau`, mirroring `AddTestFood`'s
+     pattern exactly: `AddTestDragon` (grants an already-Adult, unassigned dragon — no fast path
+     exists to reach Adult otherwise) and `FastForwardProduction` (rewinds a slot's
+     `ProductionStartedAt` so completed-cycle math can be exercised without waiting the real 180s).
+5. Ran all 3 CI gates; `stylua` flagged 3 files for formatting (not logic), auto-fixed, re-verified
+   green.
 6. **Live-verified in Studio Play mode via the Roblox Studio MCP** (real client
-   `Transaction:InvokeServer` calls, not a mocked path): started Play, drove Buy→Hatch→auto-Claim
-   for a fresh Common egg from the Client datamodel, confirmed `Workspace.Nursery.<userId>` held
-   ~29 Baby Dragon models (28 respawned from prior sessions' test dragons + the new one,
-   `DragonUID=58`, `Element=Water`), each with a working `FeedPrompt` and `Fed 0/4` label. Granted
-   test food, then fed dragon `58` four times via the real remote: `Baby_0→Baby_1→Baby_2→Baby_3→
-   Adult`, and confirmed via `inspect_instance`/`search_game_tree` that the model was **despawned**
-   from the Nursery exactly on the 4th call (`BecameAdult=true`); a 5th feed attempt on the same UID
-   correctly rejected `DragonAlreadyAdult` (41). Fed a second, pre-existing dragon (`DragonUID=52`)
-   once and confirmed it stayed in the Nursery with its `FeedStatus` label and `FeedCount` attribute
-   live-updated to `Fed 1/4` (no despawn, correctly below Adult). `get_console_output` showed no
-   game-code errors/warnings. Stopped Play mode afterward.
-7. Updated `memory-bank/backlog.md` (item 5 now fully `~~DONE~~`), `activeContext.md`, and
-   `progress.md` to record the above. This `handoff.md` write is the last step before commit.
+   `Transaction:InvokeServer` calls from the **Client** datamodel): confirmed new modules synced
+   into the **Edit-mode** DataModel first, then started Play. `AddTestDragon` granted dragon `59`
+   (Adult, unassigned). `AssignProducer(DragonUID=59, SlotId=1)` succeeded
+   (`Data={DragonUID="59",SlotId=1}`). Then, in one batch: assigning a different Adult (`58`) to the
+   now-occupied slot 1 → `SlotOccupied` (44); re-assigning `59` to slot 2 → `DragonAlreadyAssigned`
+   (46); assigning a Baby dragon (`40`) to slot 3 → `DragonNotAdult` (45); assigning to slot `99` →
+   `SlotNotFound` (43); collecting slot 1 with zero elapsed time → `NestEmpty` (47). All 5 codes
+   matched exactly. `FastForwardProduction(1, 630)` (3.5 intervals) then `CollectNest(SlotId=1)` →
+   `EggsCollected=3` (floor of 3.5, not 3.5 or 4). An immediate second collect → `NestEmpty` again.
+   `FastForwardProduction(1, 9000)` (50 intervals, deliberately way past the 12-egg capacity) then
+   `CollectNest` → `EggsCollected=12` exactly (not 50) — confirms the "do not bank excess elapsed
+   cycles" rule live, not just in the pure spec. A third immediate collect after the capacity-capped
+   one → `NestEmpty` again (confirms `ProductionStartedAt` correctly reset to collection time, not
+   left stale). `get_console_output` showed no game-code errors/warnings throughout. Stopped Play
+   mode afterward.
+7. Updated `memory-bank/backlog.md` (item 6 now `~~DONE~~`, DoD-met note), `progress.md`,
+   `activeContext.md`, and this `handoff.md`. Not yet committed.
 
 **Deviations / judgment calls (not user-specified, worth restating):**
-- The Nursery's exact world location/layout is an engineering placeholder — the plan doc only says
-  "a temporary Nursery/Baby Area" and leaves the "Open Design Item" (exact location/capacity)
-  unresolved; picked `Vector3(60, 3, -40)` with per-player lanes and a 5-wide grid purely so
-  Baby Dragons don't all stack on top of each other, not because the GDD specifies these numbers.
-- `FeedPromptController`'s "Need Food" hint reads `FoodConfig` client-side directly (already
-  Studio-synced to `ReplicatedStorage.Shared.Data`, same pattern `EggShopUI`/`EggInventoryUI` use
-  for `EggConfig`) rather than adding a new remote — it's read-only config data, not player state.
-- Slot placement inside a player's Nursery lane is computed from `#folder:GetChildren()` at spawn
-  time (not a stable per-dragon index) — acceptable for a temporary MVP area; a dragon transforming
-  to Adult and despawning can leave a gap that's naturally backfilled by whichever dragon spawns
-  next, no dedicated free-list needed at this scope.
+- Starting Farm Slot count (3, all pre-unlocked, no unlock economy) is an engineering placeholder I
+  proposed and the user approved — the PRD never specifies a number. Revisit if the GDD later adds
+  a slot-unlock economy.
+- `TransactionType.AssignProducer = 31` was placed in the gap between `FeedDragon=30` and
+  `CollectNest=40` (grouped with the other single-dragon-lifecycle transaction) rather than
+  renumbering the already-reserved `CollectNest=40`/`SellProductionEgg=41` block.
+- No "Remove from Farm Slot" transaction was built (PRD mentions `Adult_Unassigned` as a reachable
+  state, but item 6's DoD doesn't require it) — `AssignedSlotId` being nilable means this can be
+  added later with no further schema change.
+- World-presence (spawning the Adult Dragon + Nest models, an Assign trigger, a Collect
+  `ProximityPrompt`) was **deliberately not built this session** — same split as backlog item 5's
+  Rules/Transaction-then-Phase-B pattern, stated explicitly in `ADR-004`'s Consequences section.
+  There is currently no in-game (non-MCP-test-remote) way for a player to trigger Assign/Collect.
 
 **Do next:**
-1. Backlog item 6 (Assign Producer / Collect Nest transactions) is next per priority order. Needs
-   its own ADR for `FarmSlot`/Nest persistent schema (deliberately not pre-approved by ADR-003) —
-   see `docs/prd/core-game-loop.md`'s `AssignProducerTransaction`/`ProductionService`/
-   `CollectNestTransaction` sections and Phase D/E. Should reuse `DragonSpawner`'s Nursery-lane/
-   tag/`ProximityPrompt` pattern for spawning the Adult Dragon + its Nest once assigned to a slot —
-   `ReplicatedStorage.NestModels.Default` is already staged and ready to clone from (see
-   `memory-bank/systemPatterns.md`).
-2. Backlog item 3 (engine-lane activation ADR) remains open/unblocked if the human wants to switch
+1. Item 6's world-presence pass (if the human wants it next): reuse `DragonSpawner`'s Nursery-lane/
+   tag/`ProximityPrompt` pattern, clone from `ReplicatedStorage.NestModels.Default` (already staged
+   in Studio per `memory-bank/systemPatterns.md`). No schema change needed.
+2. Backlog item 7 (Sell Production Egg transaction) is next per priority order otherwise — builds
+   directly on `Profile.productionEggInventory`.
+3. Backlog item 3 (engine-lane activation ADR) remains open/unblocked if the human wants to switch
    lanes instead.
-3. This session's Phase B work is **not yet committed** — commit it (new files:
-   `src/server/Services/DragonSpawner.luau`, `src/client/Dragon/FeedPromptController.luau`; edited:
-   `src/server/init.server.luau`, `src/client/init.client.luau`, and the memory-bank files above)
-   before starting item 6.
+4. This session's work is **not yet committed** — commit it (new files: `adr/ADR-004-...`,
+   `src/shared/Data/ProductionConfig.json`, `src/shared/Domain/ProductionRules.luau`/`.spec.luau`,
+   `AssignProducerRules.luau`/`.spec.luau`, `CollectNestRules.luau`/`.spec.luau`,
+   `src/server/Transactions/Production/AssignProducerTransaction.luau`/`CollectNestTransaction.luau`;
+   edited: `Types.luau`, `TransactionType.luau`, `TransactionCode.luau`, `ProfileSchema.luau`/
+   `.spec.luau`, `FeedDragonRules.luau`, `ClaimHatchRules.luau`, `DataService.luau`,
+   `RemotesSetup.luau`, `init.server.luau`, `src/shared/Data/README.md`, and the memory-bank files
+   above) before starting item 6's world-presence or item 7.
 
 **Environment note (unchanged, restate every session):** `rojo serve` does NOT reliably stay
-running across sessions/machine restarts — **verify with `tasklist`/`curl localhost:34872` before
-assuming it's up**. Bash tool needs `export PATH="$PATH:/c/Users/Minh Anh/.rokit/bin"` prefixed
-before `ci/*.sh` calls in this environment. The Studio MCP's `execute_luau` on the `Server`
-datamodel does NOT reliably share Luau's `require()` module cache with the live running game —
-don't trust ad-hoc server-side state dumps via MCP for anything beyond read-only sanity checks;
-verify behavior through the actual remote/UI surface instead (this session again drove everything
-through real `Transaction:InvokeServer` calls from the **Client** datamodel, reading results back
-from `TransactionResult.Data`/`inspect_instance` on `Workspace`, never `execute_luau` on `Server`).
-After editing a data/script file, don't press Play immediately — Rojo syncs into the **Edit-mode**
-DataModel, and starting Play snapshots whatever the Edit-mode DataModel holds *at that moment*; if
-the sync hasn't landed yet, Play starts with stale data and there's no error to signal it. Confirm
-new files/values read back correctly in `Edit` datamodel via `search_game_tree`/`execute_luau`
-first, *then* start Play (done this session: confirmed `DragonSpawner`/`FeedPromptController`
-appeared under `ServerScriptService.Server.Services`/`StarterPlayer...Client.Dragon` in Edit mode
-before starting Play).
+running across sessions/machine restarts — **verify with `tasklist`/`curl localhost:34872/api/rojo`
+before assuming it's up**. Bash tool needs `export PATH="$PATH:/c/Users/Minh Anh/.rokit/bin"`
+prefixed before `ci/*.sh` calls in this environment. After editing a data/script file, don't press
+Play immediately — confirm new files/values read back correctly in the **Edit** datamodel via
+`search_game_tree`/`execute_luau` first, *then* start Play (done this session: confirmed
+`ProductionConfig`/`ProductionRules`/`AssignProducerRules`/`CollectNestRules`/both new transaction
+modules appeared before Play started). **New this session:** the `Transaction` RemoteFunction
+requires a numeric `requestId` (`PayloadValidator.IsPositiveInteger` in
+`TransactionService.Submit`) — passing a string requestId (e.g. `"test-assign-1"`) silently returns
+generic `InvalidRequest` (code 1) with no indication the requestId itself was the problem; always
+use a plain integer when driving `Transaction:InvokeServer` manually via MCP.

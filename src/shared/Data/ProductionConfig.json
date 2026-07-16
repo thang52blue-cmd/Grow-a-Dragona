@@ -1,0 +1,5 @@
+{
+  "productionIntervalSeconds": 180,
+  "nestCapacity": 12,
+  "startingFarmSlots": 3
+}

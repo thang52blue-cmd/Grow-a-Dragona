@@ -15,3 +15,9 @@
   `WeightedRoll.pick` + new `Elements.luau` + placeholder equal-weight `DragonConfig.elementOdds`;
   Food reuses the existing generic `Profile.inventory` (no new `FoodInventory` bucket); Farm Slot/
   Nest schema deferred to its own ADR. See `adr/ADR-003-feed-dragon-schema.md`.
+- 2026-07-17 — **ADR-004: Farm Slot and Nest schema (AssignedSlotId, FarmSlot,
+  ProductionEggInventory).** Added `DragonRecord.AssignedSlotId`; new `Profile.farmSlots`
+  (3 pre-unlocked slots, placeholder count) and `Profile.productionEggInventory` (5 fixed variant
+  keys, MVP only writes `Normal`); new `ProductionConfig.json` (180s interval, 12-egg capacity);
+  `TransactionType.AssignProducer = 31`; new `TransactionCode`s from 43. World-presence deferred to
+  a later pass, same as item 5's Phase B split. See `adr/ADR-004-farm-slot-and-nest-schema.md`.

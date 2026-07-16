@@ -145,14 +145,29 @@ smoke-tested):
   engine-glue lane isn't Lune-tested (see AGENTS.md's deferred engine lane) — a live Studio pass
   caught something the fast lane structurally cannot.
 
+- **Added 2026-07-17 (backlog item 6) — Assign Producer / Collect Nest transactions:**
+  `src/shared/Domain/ProductionRules.luau` (pure timestamp→completed-cycles calc, capacity-capped,
+  no excess-cycle banking), `AssignProducerRules.luau`, `CollectNestRules.luau` (all spec'd), thin
+  handlers `src/server/Transactions/Production/AssignProducerTransaction.luau` +
+  `CollectNestTransaction.luau`, new schema per `adr/ADR-004-farm-slot-and-nest-schema.md`
+  (`DragonRecord.AssignedSlotId`, `Profile.farmSlots`/`productionEggInventory`,
+  `ProductionConfig.json`: 180s interval / 12-egg capacity / 3 starting slots). **Live-verified in
+  Studio Play mode via MCP, 2026-07-17:** real `Transaction:InvokeServer` calls for both
+  transactions; all 5 rejection codes (`SlotOccupied`, `DragonAlreadyAssigned`, `DragonNotAdult`,
+  `SlotNotFound`, `NestEmpty`) confirmed live; a new `FastForwardProduction` test-only remote
+  rewound a slot's `ProductionStartedAt` to prove the floor-division cycle math (630s → exactly 3
+  eggs, not 3.5) and the 12-egg capacity cap (9000s/50 intervals → exactly 12 eggs, not 50, no
+  banking) against the real server clock path. No console errors. World-presence (Adult+Nest
+  models, Assign/Collect prompts) is **not** built yet — deferred, see `backlog.md` item 6.
+
 ## What's left
 
-Backlog items 1, 2, 4, and 5 (including Phase B world-presence) are done. Item 3 (engine-lane
-activation ADR) hasn't started. Items 6-9 haven't started — item 6 (Assign Producer / Collect Nest)
-is next per priority order and needs its own ADR for Farm Slot/Nest schema. The
-test-harness vertical slice's manual Studio click-test is done for both the original harness
-(2026-07-14/15) and the Buy Egg/Hatch transaction UIs (2026-07-15/16) — no known outstanding gaps
-in either.
+Backlog items 1, 2, 4, 5 (including Phase B world-presence), and 6 (Rules/Transaction layer only)
+are done. Item 3 (engine-lane activation ADR) hasn't started. Items 7-9 haven't started. Item 6's
+world-presence (spawning the Adult Dragon + Nest, Assign/Collect `ProximityPrompt`s) remains open as
+a follow-up pass, same split as item 5's Phase B. The test-harness vertical slice's manual Studio
+click-test is done for both the original harness (2026-07-14/15) and the Buy Egg/Hatch/Feed
+transaction UIs (2026-07-15/16) — no known outstanding gaps in either.
 
 ## Known bugs
 
