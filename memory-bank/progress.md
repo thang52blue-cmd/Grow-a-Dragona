@@ -63,6 +63,26 @@ smoke-tested):
   compat default, confirming that path works live too. Added `AddTestFood` (mirrors `AddTestGold`)
   to `RemotesSetup.luau`/`init.server.luau` as a permanent manual-test lever, since there was no
   other way to grant Food (no Buy Food transaction exists yet).
+- **Added 2026-07-16 (backlog item 5, Phase B — Baby Dragon world-presence, engine-glue, no new
+  pure Domain logic so `ci/run-tests.sh fast` stays at 14 specs):** new
+  `src/server/Services/DragonSpawner.luau` (spawns/despawns/updates a clone of
+  `ReplicatedStorage.DragonModels.Baby` per non-Adult owned dragon in a `Workspace.Nursery.<userId>`
+  placeholder area, tagged `BabyDragon`, each with a `FeedPrompt` `ProximityPrompt` and a
+  `FeedStatus` billboard showing `Fed X/4`) and `src/client/Dragon/FeedPromptController.luau`
+  (wires the prompt's `Triggered` to `FeedDragonTransaction` sending only `DragonUID`; shows `Need
+  Food` on the prompt when the player owns none of the dragon's Element's food, read-only off the
+  existing `ProfileUpdated` snapshot). Wired into `init.server.luau`: respawn-all-Baby on character
+  load, despawn-all on leave, spawn-on-ClaimHatch, update-or-despawn-on-FeedDragon.
+  `ci/compile-check.sh` → `COMPILE_OK`, `ci/lint.sh` → `PASSED`.
+  **Live-verified in Studio Play mode via the Roblox Studio MCP, 2026-07-16:** `RespawnAllBaby`
+  correctly recreated ~29 pre-existing Baby models on character load; a freshly-hatched dragon
+  (`DragonUID=58`, `Element=Water`) spawned with a working `FeedPrompt` and `Fed 0/4` label; 4 real
+  Feed calls via the `Transaction` remote advanced it `Baby_0→Baby_1→Baby_2→Baby_3→Adult`, and the
+  model was confirmed **despawned** from the Nursery exactly on the 4th (`BecameAdult=true`) feed —
+  a 5th feed attempt correctly rejected `DragonAlreadyAdult`; a second, pre-existing dragon
+  (`DragonUID=52`) fed once stayed in the Nursery with its `FeedStatus` label and `FeedCount`
+  attribute live-updated to `Fed 1/4` (no despawn, correctly below Adult). No console errors from
+  game code.
 - `ci/lint.sh` → real `PASSED` (selene + stylua, both clean after adding `selene.toml` — see Known
   gaps — and running `stylua src` once).
 - `rojo serve default.project.json` starts and listens; the client test harness (`src/client/`)
@@ -127,14 +147,9 @@ smoke-tested):
 
 ## What's left
 
-Backlog items 1-2 and 4 are done. Item 3 (engine-lane activation ADR) hasn't started. Item 5's
-pure Rules/Transaction layer is done (green specs) but **not yet live-verified in Studio** — this
-session's `rojo serve` was found disconnected (no process listening, dialog in Studio showed a
-stale "synced 1 day ago" prompt); `rojo serve` was restarted in the background but reconnecting
-Studio to it and testing live in Play mode is still pending. Item 5 also still needs Phase B
-world-presence (Nursery area, Baby Dragon spawn from `ReplicatedStorage.DragonModels.Baby`, a Feed
-`ProximityPrompt`) before a player can trigger `FeedDragonTransaction` in-game at all — right now
-it's only reachable by calling the `Transaction` remote directly. Items 6-9 haven't started. The
+Backlog items 1, 2, 4, and 5 (including Phase B world-presence) are done. Item 3 (engine-lane
+activation ADR) hasn't started. Items 6-9 haven't started — item 6 (Assign Producer / Collect Nest)
+is next per priority order and needs its own ADR for Farm Slot/Nest schema. The
 test-harness vertical slice's manual Studio click-test is done for both the original harness
 (2026-07-14/15) and the Buy Egg/Hatch transaction UIs (2026-07-15/16) — no known outstanding gaps
 in either.

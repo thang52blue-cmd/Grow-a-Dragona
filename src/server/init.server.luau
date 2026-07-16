@@ -13,6 +13,7 @@ local DataService = require(script.Persistence.DataService)
 local CurrencyService = require(script.Services.CurrencyService)
 local InventoryService = require(script.Services.InventoryService)
 local HatchSpawner = require(script.Services.HatchSpawner)
+local DragonSpawner = require(script.Services.DragonSpawner)
 local RemotesSetup = require(script.Remotes.RemotesSetup)
 local PlayerRuntimeStore = require(script.Runtime.PlayerRuntimeStore)
 local TransactionService = require(script.Transactions.Core.TransactionService)
@@ -127,6 +128,7 @@ Players.PlayerAdded:Connect(function(player: Player)
 		player.CharacterAdded:Once(function()
 			if profile then
 				HatchSpawner.RespawnAllPending(player, profile)
+				DragonSpawner.RespawnAllBaby(player, profile)
 			end
 		end)
 
@@ -151,6 +153,7 @@ Players.PlayerRemoving:Connect(function(player: Player)
 	PlayerRuntimeStore.SetClosing(player, true)
 	saveCharacterPosition(player)
 	HatchSpawner.DespawnAll(player)
+	DragonSpawner.DespawnAll(player)
 	local ok, err = DataService.Release(player.UserId)
 	if not ok then
 		warn(`[GrowADragona] Save failed for user {player.UserId} on leave: {err}`)
@@ -214,6 +217,19 @@ transactionRemote.OnServerInvoke = function(player: Player, requestId: unknown, 
 		local hatchId = (payload :: any) and (payload :: any).HatchId
 		if type(hatchId) == "string" then
 			HatchSpawner.Despawn(player, hatchId)
+		end
+		if result.Data then
+			local profile = DataService.Get(player.UserId)
+			local dragon = profile and profile.dragons[result.Data.DragonId]
+			if dragon then
+				DragonSpawner.Spawn(player, result.Data.DragonId, dragon)
+			end
+		end
+	elseif result.Success and typeId == TransactionType.FeedDragon and result.Data then
+		if result.Data.BecameAdult then
+			DragonSpawner.Despawn(player, result.Data.DragonUID)
+		else
+			DragonSpawner.UpdateFeedCount(player, result.Data.DragonUID, result.Data.FeedCount)
 		end
 	end
 

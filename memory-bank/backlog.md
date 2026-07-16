@@ -53,7 +53,8 @@
    is not yet rolled (no probability weights exist in `DragonConfig.json`) — flagged as a follow-up,
    blocks backlog item 5 wherever it needs `Element`.
 
-5. **Feed Dragon and growth calculation** — **RULES/TRANSACTION DONE + LIVE-VERIFIED 2026-07-16**
+5. ~~**Feed Dragon and growth calculation**~~ — **DONE 2026-07-16** (Rules/Transaction +
+   Phase B world-presence, both live-verified)
    DoD met: `src/shared/Domain/FeedDragonRules.spec.luau` proves a correct-element Feed consumes
    exactly one matching food item and advances exactly one GrowthStage (`Baby_0`→`Baby_1`→...),
    proves wrong-element/no-food is rejected (`MissingFood`) without consuming anything or advancing
@@ -78,11 +79,31 @@
    permanent `AddTestFood` test-harness remote (`src/server/Remotes/RemotesSetup.luau` +
    `init.server.luau`, mirrors the existing `AddTestGold` pattern) since there was no way to grant
    Food for manual testing otherwise — Buy Food isn't a designed transaction yet.
-   **Still not done:** Phase B/world-presence (Nursery area, Baby Dragon spawn, Feed
-   `ProximityPrompt`) — a real player still has no in-game way to reach this transaction, only via
-   direct remote calls as done here. MVP placeholder Dragon/Nest models are already staged at
-   `ReplicatedStorage.DragonModels.{Baby,Adult}` / `NestModels.Default` (see
-   `memory-bank/systemPatterns.md`), ready for Phase B to clone from.
+   **Phase B (world-presence) DONE 2026-07-16:** new `src/server/Services/DragonSpawner.luau`
+   (mirrors `HatchSpawner`'s pattern) spawns a clone of `ReplicatedStorage.DragonModels.Baby` per
+   non-Adult owned dragon in a shared `Workspace.Nursery.<userId>` area (placeholder MVP location,
+   one "lane" per player), each tagged `BabyDragon` with a `FeedPrompt` `ProximityPrompt` and a
+   `FeedStatus` billboard showing `Fed X/4`. New `src/client/Dragon/FeedPromptController.luau` wires
+   the prompt's `Triggered` to `FeedDragonTransaction` sending only `DragonUID` (per the plan doc),
+   and shows `Need Food` on the prompt when the player owns none of the dragon's Element's food
+   items (read-only presentational use of the existing `ProfileUpdated` snapshot). Wired into
+   `init.server.luau`: respawns all Baby models on character load (rejoin-safe, same as
+   `HatchSpawner.RespawnAllPending`), despawns on leave, spawns a new Baby model after a successful
+   `ClaimHatch`, and after a successful `FeedDragon` either updates the `FeedStatus` label
+   (`DragonSpawner.UpdateFeedCount`) or despawns the model entirely on `BecameAdult=true` (Adults
+   get no world presence until Farm Assignment, backlog item 6, per the plan doc's Recommended MVP
+   rule). `ci/compile-check.sh` → `COMPILE_OK`, `ci/run-tests.sh fast` → `PASSED` (14 specs,
+   unchanged — this is engine-glue, no new pure Domain logic), `ci/lint.sh` → `PASSED`.
+   **Live-verified in Studio Play mode via the Roblox Studio MCP, 2026-07-16:** `RespawnAllBaby`
+   correctly recreated ~29 pre-existing Baby models on character load; a freshly-hatched dragon
+   (`DragonUID=58`, `Element=Water`) got a `FeedPrompt` (`ActionText="Feed"`, `ObjectText="Water
+   Dragon"`) and a `Fed 0/4` label at spawn; feeding it 4x via the real `Transaction` remote
+   advanced `Baby_0→Baby_1→Baby_2→Baby_3→Adult` and the model was confirmed **despawned** from the
+   Nursery exactly on the 4th (`BecameAdult=true`) feed, a 5th feed attempt on the same UID
+   correctly rejected `DragonAlreadyAdult` (41); feeding a second, pre-existing dragon
+   (`DragonUID=52`) once left it in the Nursery with its `FeedStatus` label live-updated to `Fed
+   1/4` and its `FeedCount` attribute updated to `1` (no despawn, as expected below Adult). No
+   console errors from game code.
 
 6. **Assign Producer and Collect Nest transactions**
    DoD: spec proves only Adult dragons can be assigned to produce; spec proves Collect advances the

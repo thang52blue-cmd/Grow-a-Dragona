@@ -4,50 +4,44 @@
 
 ## Current focus
 
-Backlog items 1, 2, 4, and now 5 (Rules/Transaction + live verify) are done. Hatching (item 4) is
-now also **instant** (`EggConfig.json` every tier's `hatchDurationSeconds = 0`, per explicit user
-request) — see `adr/ADR-002-hatch-state-and-dragon-schema.md`'s newest addendum. Item 5 still has
-one gap: **no world-presence** — no Nursery, no Baby Dragon spawn, no Feed `ProximityPrompt` — so a
-real player has no in-game way to reach `FeedDragonTransaction` yet, only via a direct remote call
-(which is how this session verified it). MVP placeholder 3D assets for Dragon (Baby/Adult) and
-Nest are already staged in `ReplicatedStorage.DragonModels`/`NestModels` (Studio-side, not
-git-tracked — see `memory-bank/systemPatterns.md`), ready for whoever builds Phase B to clone from.
+Backlog items 1, 2, 4, and now 5 (fully done: Rules/Transaction + Phase B world-presence, both
+live-verified) are complete. Hatching (item 4) is **instant** (`EggConfig.json` every tier's
+`hatchDurationSeconds = 0`, per explicit user request) — see
+`adr/ADR-002-hatch-state-and-dragon-schema.md`'s newest addendum. A player can now reach
+`FeedDragonTransaction` in-game for real: Baby Dragons spawn in a shared `Workspace.Nursery`
+placeholder area with a Feed `ProximityPrompt`, no direct-remote-call workaround needed anymore.
+Adult Dragons still have no world presence — by design, per the plan doc's Recommended MVP rule
+they only spawn once assigned to a Farm Slot (item 6).
 
-**Everything for this backlog item is driven by the user-supplied plan doc, saved verbatim at
-`docs/prd/core-game-loop.md`** — read that first before continuing item 5's Phase B, or items 6/7.
+**Everything for this backlog item was driven by the user-supplied plan doc, saved verbatim at
+`docs/prd/core-game-loop.md`** — read that first before starting items 6/7 (Farm Assignment /
+Production / Selling), which build directly on top of Phase B's Nursery pattern.
 
 ## Last 3 done (this session, 2026-07-16)
 
-1. Implemented Feed Dragon (backlog item 5)'s Rules/Transaction layer: `adr/ADR-003-feed-dragon-
-   schema.md` (DragonRecord gains Element/GrowthStage/FeedCount; Element now rolled at hatch via a
-   generalized `WeightedRoll.pick` + new `Elements.luau`; Food reuses the existing generic
-   `Profile.inventory`); new `FeedDragonRules.luau`+spec (10 cases) and thin
-   `FeedDragonTransaction.luau` wired into `TransactionService`. All 3 CI gates green (14 specs).
-   Committed as `4b02518`.
-2. Found `rojo serve` wasn't running (stale Studio sync dialog); restarted it, user reconnected
-   Studio ("đã kết nối thành công").
-3. Live-verified `FeedDragonTransaction` in Studio Play mode via the Roblox Studio MCP, driving a
-   real client through real remotes (not a mocked path): Buy→Hatch→auto-Claim→Feed×4 on a fresh
-   Common/Earth dragon behaved exactly per spec (one food consumed per Feed, one GrowthStage per
-   Feed, Adult on the 4th, `DragonAlreadyAdult`/`DragonNotFound`/`InvalidRequest` all rejected
-   correctly), no console errors. Had to add a permanent `AddTestFood` remote (mirrors the existing
-   `AddTestGold` test-harness pattern) since there was no way to grant Food otherwise — Buy Food
-   isn't a designed transaction. This is now committed too.
-4. Made hatching instant per user request: all `EggConfig.json` `hatchDurationSeconds` → `0`, no
-   code change needed (existing `now < FinishAt` check already handles a zero-duration hatch as
-   immediately claimable). Documented as an ADR-002 addendum. Live-verified in Play mode: a hatch
-   auto-claims within about a second of real latency now, not the old 5s-30min wait. Along the way,
-   learned/documented a Play-snapshot-races-Rojo-sync gotcha (see handoff.md's environment note).
+1. Implemented Feed Dragon (backlog item 5)'s Rules/Transaction layer and live-verified it
+   end-to-end via the real `Transaction` remote (see `adr/ADR-003-feed-dragon-schema.md`);
+   committed as `4b02518`/`ba0cf89`.
+2. Made hatching instant per user request (`EggConfig.json` `hatchDurationSeconds = 0` for every
+   tier); live-verified; committed as `6217185`.
+3. Built and live-verified Phase B (world-presence) of backlog item 5: new
+   `src/server/Services/DragonSpawner.luau` + `src/client/Dragon/FeedPromptController.luau` spawn a
+   Baby Dragon model with a Feed `ProximityPrompt` in `Workspace.Nursery.<userId>` per non-Adult
+   owned dragon, wired into `init.server.luau` (respawn on rejoin, spawn on Claim, update-or-despawn
+   on Feed). Verified live in Studio Play mode: ~29 pre-existing dragons respawned correctly, a
+   fresh dragon's model got a working prompt and `Fed 0/4` label, 4 real Feed calls advanced it
+   `Baby_0→...→Adult` and despawned the model exactly on the 4th, a 5th feed rejected
+   `DragonAlreadyAdult`, and a second dragon fed once stayed in the Nursery with its label/attribute
+   live-updated to `Fed 1/4`. No console errors. Not yet committed (this session's work).
 
 ## Current task
 
-Memory write-back for this session (this update).
+Memory write-back for this session (this update), then commit Phase B.
 
 ## Next task
 
-Phase B of `docs/prd/core-game-loop.md`: a temporary Nursery/Baby-Area, spawning a Baby Dragon
-model (clone `ReplicatedStorage.DragonModels.Baby`) per hatched dragon, and a Feed
-`ProximityPrompt` that sends only `DragonUID` to the server — this is what actually lets a player
-reach `FeedDragonTransaction` in-game. Alternatively, backlog item 3 (engine-lane activation ADR)
-or item 6 (Assign Producer / Collect Nest) are open if the human wants to switch lanes; item 6 will
-need its own ADR for Farm Slot / Nest schema (deliberately not pre-approved by ADR-003).
+Backlog item 6 (Assign Producer / Collect Nest transactions) is next per priority order — needs its
+own ADR for Farm Slot/Nest schema (deliberately not pre-approved by ADR-003). It should reuse
+`DragonSpawner`'s Nursery-lane/tag/ProximityPrompt pattern for spawning the Adult Dragon + Nest once
+assigned to a slot. Backlog item 3 (engine-lane activation ADR) remains open/unblocked if the human
+wants to switch lanes instead.

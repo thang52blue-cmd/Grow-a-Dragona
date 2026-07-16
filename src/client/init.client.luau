@@ -9,6 +9,7 @@ local EggInventoryUI = require(script.Inventory.EggInventoryUI)
 local RequestIdGenerator = require(script.RequestIdGenerator)
 local HatchCountdownController = require(script.Hatch.HatchCountdownController)
 local AutoClaimController = require(script.Hatch.AutoClaimController)
+local FeedPromptController = require(script.Dragon.FeedPromptController)
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TestHarness"
@@ -86,3 +87,4 @@ HatchCountdownController.Init()
 AutoClaimController.Init(remotesFolder, RequestIdGenerator, function()
 	return latestPendingHatches
 end)
+FeedPromptController.Init(remotesFolder, RequestIdGenerator)
