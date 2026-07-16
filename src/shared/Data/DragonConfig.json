@@ -6,6 +6,13 @@
     "Light": { "foodType": "Sweets", "synergyType": "GachaLuck" },
     "Dark": { "foodType": "SourAcid", "synergyType": "RaidDefense" }
   },
+  "elementOdds": {
+    "Fire": 0.2,
+    "Water": 0.2,
+    "Earth": 0.2,
+    "Light": 0.2,
+    "Dark": 0.2
+  },
   "rarities": {
     "Common": { "productionMultiplier": 1 },
     "Rare": { "productionMultiplier": 3 },

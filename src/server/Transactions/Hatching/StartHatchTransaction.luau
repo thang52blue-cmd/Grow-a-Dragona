@@ -33,8 +33,13 @@ local function currentPosition(player: Player): Types.Position
 end
 
 function StartHatchTransaction.Stage(context, payload): (boolean, number?)
-	local ok, staged, code =
-		StartHatchRules.Stage(EggConfig, context.Profile, payload, context.TransactionTime, currentPosition(context.Player))
+	local ok, staged, code = StartHatchRules.Stage(
+		EggConfig,
+		context.Profile,
+		payload,
+		context.TransactionTime,
+		currentPosition(context.Player)
+	)
 	if not ok then
 		return false, code
 	end

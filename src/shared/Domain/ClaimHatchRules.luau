@@ -5,6 +5,8 @@
 local Types = require("../Types/Types")
 local TransactionCode = require("./TransactionCode")
 local WeightedRoll = require("./WeightedRoll")
+local Rarities = require("./Rarities")
+local Elements = require("./Elements")
 
 local ClaimHatchRules = {}
 
@@ -34,15 +36,20 @@ end
 
 -- Stage: computes the full write set as new values, never mutating `profile`. Re-checks
 -- `now >= FinishAt` against the server-recorded finish time (never trusts the client's
--- claim that a hatch is ready) and rolls the dragon's rarity from the *hatched egg's own*
+-- claim that a hatch is ready), rolls the dragon's rarity from the *hatched egg's own*
 -- tier odds (the same EggConfig.hatchingTiers[rarity].odds already used to sell eggs --
--- no new probability numbers invented here).
+-- no new probability numbers invented here), and independently rolls an Element from
+-- DragonConfig.elementOdds (backlog item 5 -- Feed Dragon needs Element to resolve which
+-- food matches; see adr/ADR-003-feed-dragon-schema.md for why this was previously blocked).
+-- Every new dragon starts Baby_0/FeedCount=0, per docs/prd/core-game-loop.md.
 function ClaimHatchRules.Stage(
 	eggConfig: Types.EggConfig,
+	dragonConfig: Types.DragonConfig,
 	profile: Types.Profile,
 	payload: { [string]: any },
 	now: number,
-	rollValue: number
+	rarityRollValue: number,
+	elementRollValue: number
 ): (boolean, StagedClaimHatch?, number?)
 	local hatchId = payload.HatchId :: string
 	local pending = profile.pendingHatches[hatchId]
@@ -58,17 +65,25 @@ function ClaimHatchRules.Stage(
 	-- `tierConfig.odds` is `Types.EggOdds` ({[Rarity]: number}), WeightedRoll.pick takes the
 	-- more general `{[string]: number}` -- cast at the boundary rather than widen the
 	-- (deliberately Rarity-agnostic, reusable) WeightedRoll signature.
-	local dragonRarity = WeightedRoll.pick(tierConfig.odds :: any, rollValue)
+	local dragonRarity = WeightedRoll.pick(Rarities.List, tierConfig.odds :: any, rarityRollValue)
+	local dragonElement = WeightedRoll.pick(Elements.List, dragonConfig.elementOdds :: any, elementRollValue)
 	local dragonId = tostring(profile.meta.nextEntityId)
 
 	local newPendingHatches = table.clone(profile.pendingHatches)
 	newPendingHatches[hatchId] = nil
 
-	-- Plain `string`, not `Types.Rarity`: same luau-lsp widening quirk documented in
-	-- BuyEggRules.luau -- dragonRarity is already a known-valid rarity (WeightedRoll only
-	-- ever returns a member of Rarities.List).
+	-- Plain `string`, not `Types.Rarity`/`Types.Element`: same luau-lsp widening quirk
+	-- documented in BuyEggRules.luau -- both rolled values are already known-valid members
+	-- of their respective fixed-order lists.
 	local newDragons = table.clone(profile.dragons)
-	newDragons[dragonId] = { Id = dragonId, Rarity = dragonRarity :: any, HatchedAt = now }
+	newDragons[dragonId] = {
+		Id = dragonId,
+		Rarity = dragonRarity :: any,
+		Element = dragonElement :: any,
+		GrowthStage = "Baby_0",
+		FeedCount = 0,
+		HatchedAt = now,
+	}
 
 	return true,
 		{

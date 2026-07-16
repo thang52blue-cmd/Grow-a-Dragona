@@ -11,6 +11,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ClaimHatchRules = require(Shared.Domain.ClaimHatchRules)
 local Types = require(Shared.Types.Types)
 local EggConfig = require(Shared.Data.EggConfig) :: Types.EggConfig
+local DragonConfig = require(Shared.Data.DragonConfig) :: Types.DragonConfig
 
 local ClaimHatchTransaction = {}
 
@@ -19,8 +20,15 @@ function ClaimHatchTransaction.Validate(_context, payload): (boolean, number?)
 end
 
 function ClaimHatchTransaction.Stage(context, payload): (boolean, number?)
-	local ok, staged, code =
-		ClaimHatchRules.Stage(EggConfig, context.Profile, payload, context.TransactionTime, math.random())
+	local ok, staged, code = ClaimHatchRules.Stage(
+		EggConfig,
+		DragonConfig,
+		context.Profile,
+		payload,
+		context.TransactionTime,
+		math.random(),
+		math.random()
+	)
 	if not ok then
 		return false, code
 	end

@@ -1,5 +1,8 @@
 local Rarities = require("./Rarities")
+local Elements = require("./Elements")
 local Types = require("../Types/Types")
+
+local VALID_GROWTH_STAGES = { Baby_0 = true, Baby_1 = true, Baby_2 = true, Baby_3 = true, Adult = true }
 
 local ZERO_POSITION: Types.Position = { X = 0, Y = 0, Z = 0 }
 
@@ -104,12 +107,25 @@ function ProfileSchema.validate(data: unknown): (boolean, Types.Profile?, string
 				or type(entry.Id) ~= "string"
 				or not Rarities.IsValid(entry.Rarity)
 				or type(entry.HatchedAt) ~= "number"
+				or (entry.Element ~= nil and not Elements.IsValid(entry.Element))
+				or (entry.GrowthStage ~= nil and not VALID_GROWTH_STAGES[entry.GrowthStage])
+				or (
+					entry.FeedCount ~= nil
+					and (type(entry.FeedCount) ~= "number" or entry.FeedCount < 0 or entry.FeedCount % 1 ~= 0)
+				)
 			then
 				return false, nil, "invalid dragons entry for " .. tostring(dragonId)
 			end
+			-- Element/GrowthStage/FeedCount are additive (backlog item 5, see
+			-- adr/ADR-003-feed-dragon-schema.md) -- a dragon saved before this change has none of
+			-- them; default to Fire/Baby_0/0 rather than reject, same additive-field precedent as
+			-- pendingHatches.Position.
 			dragons[dragonId] = {
 				Id = entry.Id,
 				Rarity = entry.Rarity,
+				Element = if entry.Element then entry.Element else "Fire",
+				GrowthStage = if entry.GrowthStage then entry.GrowthStage else "Baby_0",
+				FeedCount = if entry.FeedCount then entry.FeedCount else 0,
 				HatchedAt = entry.HatchedAt,
 			}
 		end

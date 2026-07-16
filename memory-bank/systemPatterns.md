@@ -186,3 +186,27 @@ never trusting a client-sent price. This is the pattern future transaction types
 not another ad-hoc `RemoteEvent` pair like the test-harness ones above.
 
 No other API contracts (remote names/payload shapes) are committed yet.
+
+## World-model asset locations (Studio-side, not git-tracked, added 2026-07-16)
+
+Following the existing `ReplicatedStorage.EggModels.<Rarity>` convention, placeholder MVP models for
+`docs/prd/core-game-loop.md` were sourced from free Creator Store assets and placed directly in the
+live Studio place (not synced through Rojo/git — same as `EggModels`):
+
+- `ReplicatedStorage.DragonModels.Adult` / `.Baby` — same source mesh (Creator Store asset
+  `17597495724`, "AN_Dragon" by LordCat76, free, no embedded scripts), cloned twice and
+  `Model:ScaleTo()`'d to two absolute scales (`0.1` Adult ≈ 11×12×10 studs, `0.033` Baby ≈ 4×4×3
+  studs) so Baby/Adult share one consistent look. Phase B/C/D should clone from these, not re-insert
+  from the Store.
+- `ReplicatedStorage.NestModels.Default` — Creator Store asset `488637788`, "Bird's Nest" by
+  LegendaryFrosts, free, no embedded scripts.
+- Several other free "dragon"/"nest" search results were inserted, inspected, and rejected before
+  landing on the above: some had embedded combat/AI `Script`s (e.g. a full "Green Dragon" boss rig
+  with `EXP`/`Gold`/`ProjectileMagic` scripts — rejected per the `CoreSkyboxSystem` lesson in
+  `adr/ADR-002`'s addendum, never trust an imported free model's scripts without reading them first),
+  some were degenerate/near-zero-size meshes, one was a single flat un-dragon-shaped `Part`. None of
+  those were kept; `Workspace.AssetPreview` currently holds a live side-by-side preview of the three
+  kept models for manual review — safe to delete once eyeballed.
+- Real Food item models were judged unnecessary for MVP — the plan only needs 2D icons in the
+  Food inventory UI (same `ViewportFrame`-icon pattern as `EggIconViewport`), not world-placed
+  models.

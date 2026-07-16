@@ -18,6 +18,7 @@ local TransactionService = require(script.Transactions.Core.TransactionService)
 local BuyEggTransaction = require(script.Transactions.Economy.BuyEggTransaction)
 local StartHatchTransaction = require(script.Transactions.Hatching.StartHatchTransaction)
 local ClaimHatchTransaction = require(script.Transactions.Hatching.ClaimHatchTransaction)
+local FeedDragonTransaction = require(script.Transactions.Dragon.FeedDragonTransaction)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local TransactionType = require(Shared.Domain.TransactionType)
@@ -34,6 +35,8 @@ TransactionService.RegisterHandler(TransactionType.StartHatch, StartHatchTransac
 TransactionService.SetTypeRateLimit(TransactionType.StartHatch, 10, 2)
 TransactionService.RegisterHandler(TransactionType.ClaimHatch, ClaimHatchTransaction)
 TransactionService.SetTypeRateLimit(TransactionType.ClaimHatch, 10, 2)
+TransactionService.RegisterHandler(TransactionType.FeedDragon, FeedDragonTransaction)
+TransactionService.SetTypeRateLimit(TransactionType.FeedDragon, 10, 2)
 
 local remotesFolder = RemotesSetup.Init()
 

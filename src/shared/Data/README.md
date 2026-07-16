@@ -15,11 +15,15 @@ Never hardcode these values in logic; require the file instead.
   switch and a single-request purchase cap; adjust once real balancing lands.
 - `DragonConfig.json` — `elements` (food category + synergy type per element) and `rarities`
   (production multiplier per rarity) are transcribed from GDD §3.1-§3.2. Real design values.
+  **Added 2026-07-16** for Feed Dragon (backlog item 5): `elementOdds`, an equal-weight (20% each)
+  placeholder used to roll a hatched dragon's `Element` — no real per-element rarity has been
+  designed yet; see `adr/ADR-003-feed-dragon-schema.md`.
 - `FoodConfig.json` — the food-item catalog per element is transcribed from GDD §3.1's literal
-  examples (e.g. Fire → chili peppers, hot sauce, fire berries). **Growth-rate numbers are
-  deliberately absent** — the GDD only states qualitatively that feeding speeds growth and its
-  absence "significantly" slows it, with no number given. Do not invent one; get it from a design
-  decision (log it as an ADR when it lands) before Feed Dragon (backlog item 5) needs it.
+  examples (e.g. Fire → chili peppers, hot sauce, fire berries). The previously-flagged "no
+  growth-rate number" gap is resolved by `docs/prd/core-game-loop.md`: growth is not rate-based at
+  all — a Baby advances exactly one stage per successful Feed (any one owned food item matching the
+  dragon's `Element`) and becomes Adult on the 4th, with no timers, decay, or partial progress. See
+  `adr/ADR-003-feed-dragon-schema.md`.
 - `EconomyConfig.json` — `startingGold: 0` because the GDD specifies a free starter egg, not a
   starting Gold amount (§2.1 step 1); 0 is the neutral default, not a sourced design value.
   `maxGold` and `maxInventoryStack` are engineering safety caps (keep numbers away from float-

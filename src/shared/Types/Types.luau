@@ -30,8 +30,11 @@ export type RarityConfig = {
 
 export type DragonConfig = {
 	elements: { [Element]: ElementConfig },
+	elementOdds: { [Element]: number },
 	rarities: { [Rarity]: RarityConfig },
 }
+
+export type GrowthStage = "Baby_0" | "Baby_1" | "Baby_2" | "Baby_3" | "Adult"
 
 export type FoodConfig = { [Element]: { string } }
 
@@ -64,6 +67,9 @@ export type PendingHatch = {
 export type DragonRecord = {
 	Id: string,
 	Rarity: Rarity,
+	Element: Element,
+	GrowthStage: GrowthStage,
+	FeedCount: number,
 	HatchedAt: number,
 }
 

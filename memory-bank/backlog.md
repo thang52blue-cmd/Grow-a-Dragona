@@ -53,9 +53,23 @@
    is not yet rolled (no probability weights exist in `DragonConfig.json`) — flagged as a follow-up,
    blocks backlog item 5 wherever it needs `Element`.
 
-5. **Feed Dragon and growth calculation**
-   DoD: spec proves growth rate differs correctly for correct-element vs. wrong/no food; spec proves
-   Baby→Adult only triggers at the defined threshold, not before.
+5. **Feed Dragon and growth calculation** — **RULES/TRANSACTION DONE 2026-07-16, LIVE VERIFY PENDING**
+   DoD met: `src/shared/Domain/FeedDragonRules.spec.luau` proves a correct-element Feed consumes
+   exactly one matching food item and advances exactly one GrowthStage (`Baby_0`→`Baby_1`→...),
+   proves wrong-element/no-food is rejected (`MissingFood`) without consuming anything or advancing
+   state, and proves the 4th Feed transforms to `Adult` exactly once (a 5th Feed attempt rejects
+   `DragonAlreadyAdult`, FeedCount never exceeds 4). `ci/run-tests.sh fast` → `PASSED` (14 specs);
+   `ci/compile-check.sh` → `COMPILE_OK`; `ci/lint.sh` → `PASSED` (advisory). See
+   `adr/ADR-003-feed-dragon-schema.md` for the schema this needed (`DragonRecord.Element`/
+   `GrowthStage`/`FeedCount`, Element now rolled at hatch, Food reuses the existing generic
+   `Profile.inventory` rather than a new bucket) and `docs/prd/core-game-loop.md` for the source
+   plan. `FeedDragonTransaction` is wired into `TransactionService` (`TransactionType.FeedDragon`)
+   the same way as every prior transaction.
+   **Not yet done:** live Studio verification (rojo sync was disconnected this session — `rojo
+   serve` was started but Studio hadn't reconnected yet) and Phase B/world-presence (Nursery area,
+   Baby Dragon spawn, Feed `ProximityPrompt`) so a player can actually trigger this in-game. MVP
+   placeholder Dragon/Nest models are already staged at `ReplicatedStorage.DragonModels.{Baby,Adult}`
+   / `NestModels.Default` (see `memory-bank/systemPatterns.md`), ready for Phase B to clone from.
 
 6. **Assign Producer and Collect Nest transactions**
    DoD: spec proves only Adult dragons can be assigned to produce; spec proves Collect advances the

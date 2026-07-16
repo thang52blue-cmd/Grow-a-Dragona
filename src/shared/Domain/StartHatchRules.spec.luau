@@ -29,7 +29,8 @@ local function runFullTransaction(profile, payload, now, position)
 		return false, validateCode
 	end
 
-	local stageOk, staged, stageCode = StartHatchRules.Stage(EGG_CONFIG, profile, payload, now, position or TEST_POSITION)
+	local stageOk, staged, stageCode =
+		StartHatchRules.Stage(EGG_CONFIG, profile, payload, now, position or TEST_POSITION)
 	if not stageOk then
 		return false, stageCode
 	end

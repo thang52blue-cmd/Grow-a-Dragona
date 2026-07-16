@@ -2,104 +2,108 @@
 
 > Always load, read first. Last session's state transfer. Overwritten each `end-session`.
 
-## Session: 2026-07-15 — Buy Egg transaction (backlog item 2) implemented, verified live in Studio
+## Session: 2026-07-16 — Core-loop plan received; MVP assets sourced; Feed Dragon (backlog item 5) Rules/Transaction built
 
 **Verified state:** All three gates green: `ci/compile-check.sh` → `COMPILE_OK`, `ci/run-tests.sh
-fast` → `PASSED` (12 specs, up from 4), `ci/lint.sh` → `PASSED`. Live-verified in Studio via MCP
-(Play mode): successful purchase, duplicate-RequestId dedupe, invalid-payload rejection,
-insufficient-gold rejection, and rate-limit rejection under burst all behaved correctly with no
-console errors from game code.
+fast` → `PASSED` (14 specs, up from 12), `ci/lint.sh` → `PASSED`. **Not live-verified in Studio
+this session** — `rojo serve` was found not running (Studio's sync dialog showed "synced 1 day
+ago"); it was restarted in the background but the human hasn't reconnected Studio to it yet, so
+`FeedDragonTransaction` has only been proven at the pure-spec layer, not exercised live.
 
 **What happened:**
 
-1. Read the user's `transaction_mvp_plan_for_claude.md` (a full Transaction MVP framework spec:
-   TransactionService/Queue/Type/Code, PayloadValidator, RateLimiter, PlayerRuntimeStore,
-   BuyEggTransaction). Adapted it to this repo's actual architecture instead of following it
-   literally — see "Deviations from the plan" below for what changed and why.
-2. Built the pure (Lune-testable, no engine globals — AGENTS.md hard rule) layer under
-   `src/shared/Domain/`: `PayloadValidator`, `RateLimiter`, `RequestCache`, `TransactionType`,
-   `TransactionCode`, and `BuyEggRules` (the actual Validate/Stage/Commit math for buying a
-   hatching egg). Each has a spec; `BuyEggRules.spec.luau` covers the plan's Test 1-4 (success,
-   existing-stack, insufficient-gold, malformed-payload) at this pure layer.
-3. Built the engine-glue layer under `src/server/`: `Runtime/PlayerRuntimeStore.luau` (per-player
-   queue/rate-limit/dedupe-cache state, runtime-only, never persisted), `Transactions/Core/
-   TransactionQueue.luau` (per-player serialization) and `TransactionService.luau` (the
-   orchestrator: dedupe -> rate limit -> enqueue -> Validate -> Stage -> Commit -> cache result),
-   and `Transactions/Economy/BuyEggTransaction.luau` (thin handler delegating to `BuyEggRules`).
-4. Wired it in: `RemotesSetup.luau` now also creates a `Transaction` `RemoteFunction`;
-   `init.server.luau` registers the `BuyEgg` handler, sets its rate limit (5 req / 2s), creates/
-   closes/removes each player's `PlayerRuntimeStore` alongside the existing profile load/release
-   lifecycle, and pushes a `ProfileUpdated` snapshot after every transaction.
-5. Extended the client test harness (`src/client/init.client.luau`): "Buy 1 Common Egg" / "Buy 1
-   Rare Egg" buttons, a "Retry Last Request" button (resends the exact last RequestId to manually
-   verify dedupe), and a `TransactionLabel` showing the last `TransactionResult`.
-6. Ran `ci/compile-check.sh` — hit and fixed two real `luau-lsp` issues: (a) casting an
-   `any`-typed payload field into a `Types.Rarity` string-literal union tripped a luau-lsp
-   widening bug (produced a nonsensical `string | string | string | string | string` type); fixed
-   by keeping `BuyEggRules.StagedBuyEgg.Rarity` as plain `string` instead of the literal union,
-   since `Validate` already confirmed membership. (b) `pcall(handler.Commit, context)` — since
-   `Commit` is typed to return 0 values, luau-lsp only allows destructuring the single `ok`
-   boolean, not a second error-message value; dropped that second destructured variable.
-7. Live-verified in Studio via the Roblox Studio MCP tools (`rojo serve` was already running;
-   Rojo had auto-synced all new files — confirmed via `execute_luau` listing
-   `ReplicatedStorage.Shared.Domain`'s children before testing). **Found and fixed a real
-   concurrency bug this way:** the first live `Transaction:InvokeServer(...)` call crashed the
-   server thread with `cannot spawn non-suspended coroutine with arguments` at
-   `TransactionQueue.luau`. Root cause: `TransactionQueue.Run` called `processNext(runtime)`
-   *before* reaching its own `coroutine.yield()`; since `task.spawn` runs the next thread
-   immediately (not deferred), `processNext`'s `task.spawn(function() job() ... end)` executed
-   synchronously and tried to `task.spawn(thread, ok, resultOrErr)` to resume the calling thread
-   *before that thread had actually yielded yet* — Roblox rejects resuming a still-running
-   coroutine. Fixed by kicking off `processNext` via `task.defer` instead of a direct call, so the
-   caller's thread reaches `coroutine.yield()` first; `processNext`'s own recursive continuation
-   no longer needs (and no longer has) a `task.spawn` wrapper around `job()`, since `job()` itself
-   already hands control back to the original caller synchronously via its own `task.spawn(thread,
-   ...)`.
-8. Re-ran all three CI gates clean after the fix, then re-verified live: a fresh `BuyEgg` request
-   (Common, Amount 1) returned `Success=true, Revision=1`, Gold and `HatchEgg_Common` moved by
-   exactly `UnitPrice * Amount`; resending the *same* RequestId returned the byte-identical cached
-   result without charging Gold again; an invalid `Amount` (`999999`) returned `InvalidAmount`
-   (code 20); an unknown rarity string returned `InvalidEggType` (code 10); a burst of requests
-   correctly triggered `RateLimited` (code 6), and once that window cleared, an unaffordable
-   `Mythic` purchase correctly returned `NotEnoughCurrency` (code 21). No console errors from game
-   code across the whole session (one benign error in the output log was from my own ad-hoc debug
-   script, not game code). Note: this is the user's live/shared Studio session, so absolute Gold/
-   inventory numbers drifted between checks (consistent with the user also having the Play window
-   open) — the *deltas* and *codes* per call are what were verified, not absolute totals.
+1. The user pasted a new gameplay plan (English) for the full core loop: Buy Egg → Hatch → Baby
+   Dragon → Feed ×4 → Adult → auto-produce Production Eggs in a capped (12) Nest → Collect → Sell →
+   repeat. Saved verbatim as `docs/prd/core-game-loop.md` (this is now the source-of-truth spec for
+   backlog items 5-7 — read it before touching any of them). Cross-checked it against the existing
+   repo/ADRs and flagged two things to the user before implementing: (a) dragons don't roll an
+   `Element` yet (a known ADR-002 blocker), and (b) the plan needs new persistent `DragonRecord`
+   fields, which is a gated save-schema change per `AGENTS.md`.
+2. User asked what 3D assets were needed and said to connect to Roblox Studio and source them.
+   Used the Studio MCP (`search_asset`/`insert_asset`/`inspect_instance`/`screen_capture`) to find
+   free Creator Store models for Baby Dragon, Adult Dragon, and Nest. **Rejected several candidates
+   after inspection:** one "Green Dragon" boss-rig model had embedded combat/AI `Script`s
+   (`EXP`/`Gold`/`ProjectileMagic`/`Respawn`/etc. — a whole enemy system, not a clean asset); one
+   was a single flat un-dragon-shaped `Part`; one had near-zero mesh size (broken/degenerate). This
+   repeats the exact lesson from ADR-002's `CoreSkyboxSystem` incident: never trust an imported
+   free model's contents without reading them first. **Kept:** one dragon mesh (Creator Store asset
+   `17597495724`, "AN_Dragon" by LordCat76, free, script-free) cloned twice via `Model:ScaleTo()`
+   into `ReplicatedStorage.DragonModels.Adult` (~11×12×10 studs) and `.Baby` (~4×4×3 studs, scale
+   0.033) so both stages share one consistent look; one nest mesh (asset `488637788`, "Bird's Nest"
+   by LegendaryFrosts, free, script-free) into `ReplicatedStorage.NestModels.Default`. Judged Food
+   items don't need 3D models at all for MVP (UI-icon only, per the plan). Documented the exact
+   asset IDs/rejections in `memory-bank/systemPatterns.md`'s new "World-model asset locations"
+   section (this is Studio-side state, not git-tracked, same as the pre-existing `EggModels`).
+   `Workspace.AssetPreview` currently holds a live side-by-side preview of the 3 kept models — the
+   user confirmed via screenshot that they look right ("these models are pretty, continue").
+3. User said to continue. Ran `ci/gate-freshness.sh`/`compile-check.sh`/`run-tests.sh fast` first
+   to confirm a known-green baseline (12 specs, all passing) before starting new work.
+4. Wrote `adr/ADR-003-feed-dragon-schema.md` (append-only entry added to `decisionLog.md`) covering:
+   `DragonRecord` gains `Element`/`GrowthStage`/`FeedCount`; `Element` rolled at hatch via a newly
+   *generalized* `WeightedRoll.pick` (was hardcoded to `Rarities.List`, now takes an explicit
+   ordered-key-list parameter so it works for both Rarity and the new `Elements.luau`); a
+   placeholder equal-weight (20% each) `DragonConfig.elementOdds`, same "explicit placeholder,
+   not a blocker" precedent as `hatchDurationSeconds`; **no new `FoodInventory` profile section** —
+   Food reuses the existing generic `Profile.inventory` (same deviation pattern as
+   `EggTypeId`→`Rarity` from the Buy Egg session); `AssignedSlotId` deliberately deferred to
+   whichever ADR covers backlog item 6 (Farm Assignment).
+5. Implemented the vertical slice: `Elements.luau` (+spec, mirrors `Rarities.luau`);
+   `WeightedRoll.luau` generalized (+spec updated, one new case for a non-Rarity key list);
+   `ClaimHatchRules.luau` updated to also roll `Element` and initialize `GrowthStage`/`FeedCount`
+   (+spec updated with new assertions); `ProfileSchema.luau` validates/defaults the 3 new
+   `DragonRecord` fields the same additive way as `pendingHatches.Position` (+2 new spec cases: one
+   for the default path, one rejecting invalid Element/GrowthStage/negative-or-fractional
+   FeedCount); new `FeedDragonRules.luau` (+spec, 10 cases: success + stage-advance, food-priority-
+   order consumption, 4th-feed-transforms-exactly-once, missing-food ×2, already-Adult ×2 (incl.
+   duplicate-request), unknown-dragon, malformed-payload, Stage-doesn't-mutate); new thin
+   `src/server/Transactions/Dragon/FeedDragonTransaction.luau`, registered in `init.server.luau`
+   under the already-reserved `TransactionType.FeedDragon` (30) with a 10-req/2s rate limit, same
+   pattern as every prior transaction. New `TransactionCode`s: `DragonNotFound=40`,
+   `DragonAlreadyAdult=41`, `MissingFood=42`.
+6. Ran `ci/compile-check.sh` (hit and fixed one real error: `ProfileSchema.luau`'s dragons-clone
+   literal was missing the 3 new required `DragonRecord` fields, caught by `luau-lsp analyze`'s
+   structural typing), `ci/run-tests.sh fast` (14/14 green), `ci/lint.sh` (found and fixed stylua
+   formatting diffs — some pre-existing in files this session didn't touch, cleaned up anyway since
+   `stylua src` is a zero-risk mechanical pass).
+7. Attempted live Studio verification per the established precedent (every prior backlog item was
+   live-verified via the Studio MCP before being marked DONE). Found `rojo serve` was **not
+   running** (`tasklist` showed no process, `curl localhost:34872` refused) — meaning Studio's copy
+   of the code was still the old, pre-session version despite the asset work from step 2 having
+   landed fine (that was done directly via `execute_luau`, independent of Rojo sync). Restarted
+   `rojo serve` in the background. Deliberately **did not** attempt to click Studio's "Connect"
+   button via simulated input — that's a UI action on the user's own live/shared Studio session,
+   better left to them or a future turn with explicit confirmation, rather than blindly automating
+   a click. **Backlog item 5 is therefore marked "Rules/Transaction done, live verify pending" in
+   `memory-bank/backlog.md`, not fully DONE** — this is a deliberate, honest gap, not an oversight.
 
-**Deviations from the plan** (implementation-scope adaptations, not architecture decisions — no
-new ADR filed; see `adr/ADR-001-initial-toolchain-and-structure.md` for the bar that would trigger
-one):
-- **No profile save-schema change.** The plan wanted `profile.Metadata.Revision` (persisted) and
-  `Statistics.*` counters. AGENTS.md gates "changing live save schemas" behind explicit approval +
-  an ADR, and neither is needed for the actual backlog-2 DoD (atomic commit + dedupe). `Revision`
-  is implemented as a **runtime-only**, session-scoped counter on `PlayerRuntimeStore` instead —
-  observable behavior (increments on success, unchanged on failure) matches the plan's test
-  expectations without touching `Types.Profile`/`ProfileSchema.luau`. `Statistics` tracking was
-  dropped entirely as out of scope for this backlog item.
-- **`EggTypeId` (numeric) -> `Rarity` (string).** The plan's `EggConfig` used a numeric
-  `EggTypeId`; this repo's `EggConfig.json` already keys hatching tiers by `Rarity`
-  (`Common`/`Rare`/`Epic`/`Legendary`/`Mythic`, GDD-sourced). Reused that instead of introducing a
-  parallel numeric-id config.
-- **No separate `InventoryRepository`.** The existing `src/shared/Domain/Inventory.luau` (`add`/
-  `remove`, already pure/immutable) already satisfies the Stage/Commit split the plan wanted;
-  `BuyEggRules.Stage` calls `Inventory.add` directly.
-- **`enabled` / `maxPurchaseAmount` added to `EggConfig.json`** per tier — engineering
-  placeholders (not GDD-sourced), documented in `src/shared/Data/README.md`.
-- **`TransactionCode.RateLimited = 6`** added — the plan's own code list didn't have one, despite
-  describing rate limiting as required behavior.
+**Deviations from the plan doc** (see `adr/ADR-003-feed-dragon-schema.md` for full reasoning):
+- No `FoodInventory = {FireFood, WaterFood, ...}` bucket — reused the existing generic
+  `Profile.inventory`, keyed by the concrete `FoodConfig.json` item names.
+- `AssignedSlotId` not added to `DragonRecord` yet — that's backlog item 6's schema decision.
+- The plan doesn't specify which of an element's 3 food items gets consumed when a player owns
+  more than one kind; `FeedDragonRules` picks deterministically (first-in-`FoodConfig`-order that's
+  owned) to keep the pure layer deterministic and its spec exact.
 
-**Do next:** backlog item 2 is DONE. Next up is backlog item 3 (engine-lane activation ADR) or
-item 4 (Start Hatch / Claim Hatch transactions) — see `memory-bank/backlog.md`. If item 4 is
-picked, `TransactionType.StartHatch`/`ClaimHatch` ids already exist (reserved, unused); the queue/
-service/rate-limiter framework built this session is meant to be reused as-is for every future
-transaction type — only a new pure `*Rules.luau` + thin handler should be needed per type.
+**Do next:**
+1. Reconnect Studio to the now-running `rojo serve` (human action: click "Connect", or confirm
+   it's already synced) and live-verify `FeedDragonTransaction` in Play mode — inject a test Baby
+   dragon + matching food into a live profile via `execute_luau`, invoke the `Transaction` remote
+   with `TransactionType.FeedDragon`, confirm `GrowthStage`/`FeedCount` advance and the food is
+   consumed, confirm the 4th feed transforms to Adult, confirm wrong/no food rejects `MissingFood`
+   cleanly with no console errors.
+2. Phase B of `docs/prd/core-game-loop.md`: temporary Nursery/Baby-Area, spawn a Baby Dragon model
+   (clone `ReplicatedStorage.DragonModels.Baby`) per hatched dragon, attach a Feed
+   `ProximityPrompt` that sends only `DragonUID`. This is what actually lets a player reach
+   `FeedDragonTransaction` in-game — right now it's remote-callable but has no world presence.
+   `ReplicatedStorage.DragonModels.{Baby,Adult}` and `NestModels.Default` are ready to clone from.
+3. Backlog item 3 (engine-lane activation ADR) remains open/unblocked if the human wants to switch
+   lanes instead.
 
-**Environment note (unchanged):** `rojo serve` keeps running across Studio sessions.
-Bash tool needs `export PATH="$PATH:/c/Users/Minh Anh/.rokit/bin"` prefixed before `ci/*.sh`
-calls in this environment. **New this session:** the Studio MCP's `execute_luau` on the `Server`
-datamodel does NOT reliably share Luau's `require()` module cache with the live running game (a
-`require`'d module's internal state came back as freshly-empty/nil when introspected this way) —
-don't trust ad-hoc server-side state dumps via MCP for anything beyond read-only sanity checks;
-prefer asserting behavior through the actual remote/UI surface (which this session did once that
-was noticed).
+**Environment note (unchanged, restate every session):** `rojo serve` does NOT reliably stay
+running across sessions/machine restarts — **verify with `tasklist`/`curl localhost:34872` before
+assuming it's up**, don't just trust a prior session's note that it "keeps running." Bash tool
+needs `export PATH="$PATH:/c/Users/Minh Anh/.rokit/bin"` prefixed before `ci/*.sh` calls in this
+environment. The Studio MCP's `execute_luau` on the `Server` datamodel does NOT reliably share
+Luau's `require()` module cache with the live running game — don't trust ad-hoc server-side state
+dumps via MCP for anything beyond read-only sanity checks; verify behavior through the actual
+remote/UI surface instead.

@@ -104,6 +104,10 @@ local passed = Check.runAll({
 			Check.equal(profile.pendingHatches["1"].FinishAt, 105)
 			Check.equal(profile.dragons["2"].Rarity, "Rare")
 			Check.equal(profile.meta.nextEntityId, 3)
+			-- pre-Feed-Dragon-feature save: Element/GrowthStage/FeedCount absent -> defaults
+			Check.equal(profile.dragons["2"].Element, "Fire")
+			Check.equal(profile.dragons["2"].GrowthStage, "Baby_0")
+			Check.equal(profile.dragons["2"].FeedCount, 0)
 		end,
 	},
 	{
@@ -128,6 +132,29 @@ local passed = Check.runAll({
 				meta = { schemaVersion = 1, session = {} },
 			})
 			Check.isFalse(ok)
+		end,
+	},
+	{
+		name = "validate rejects a dragons entry with an invalid Element or GrowthStage or negative FeedCount",
+		run = function()
+			local base = { Id = "1", Rarity = "Common", HatchedAt = 90 }
+			local function withDragon(overrides)
+				local entry = table.clone(base)
+				for k, v in overrides do
+					entry[k] = v
+				end
+				return ProfileSchema.validate({
+					gold = 0,
+					inventory = {},
+					dragons = { ["1"] = entry },
+					meta = { schemaVersion = 1, session = {} },
+				})
+			end
+
+			Check.isFalse(withDragon({ Element = "NotAnElement" }))
+			Check.isFalse(withDragon({ GrowthStage = "NotAStage" }))
+			Check.isFalse(withDragon({ FeedCount = -1 }))
+			Check.isFalse(withDragon({ FeedCount = 1.5 }))
 		end,
 	},
 	{

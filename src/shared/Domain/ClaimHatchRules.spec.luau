@@ -16,23 +16,32 @@ local EGG_CONFIG = {
 	productionVariants = {},
 }
 
+local DRAGON_CONFIG = {
+	elements = {},
+	elementOdds = { Fire = 0.2, Water = 0.2, Earth = 0.2, Light = 0.2, Dark = 0.2 },
+	rarities = {},
+}
+
 local function profileWithPendingHatch(hatchId: string, rarity: string, finishAt: number, nextEntityId: number?)
 	return {
 		gold = 0,
 		inventory = {},
-		pendingHatches = { [hatchId] = { Id = hatchId, Rarity = rarity, StartedAt = finishAt - 5, FinishAt = finishAt } },
+		pendingHatches = {
+			[hatchId] = { Id = hatchId, Rarity = rarity, StartedAt = finishAt - 5, FinishAt = finishAt },
+		},
 		dragons = {},
 		meta = { schemaVersion = 1, session = { jobId = nil, updatedAt = 0 }, nextEntityId = nextEntityId or 1 },
 	}
 end
 
-local function runFullTransaction(profile, payload, now, rollValue)
+local function runFullTransaction(profile, payload, now, rarityRollValue, elementRollValue)
 	local validateOk, validateCode = ClaimHatchRules.Validate(payload)
 	if not validateOk then
 		return false, validateCode
 	end
 
-	local stageOk, staged, stageCode = ClaimHatchRules.Stage(EGG_CONFIG, profile, payload, now, rollValue)
+	local stageOk, staged, stageCode =
+		ClaimHatchRules.Stage(EGG_CONFIG, DRAGON_CONFIG, profile, payload, now, rarityRollValue, elementRollValue or 0)
 	if not stageOk then
 		return false, stageCode
 	end
@@ -52,6 +61,9 @@ local passed = Check.runAll({
 			Check.equal(resultData.DragonId, "1")
 			Check.equal(resultData.Rarity, "Common") -- rollValue 0 lands in Common's bucket
 			Check.equal(profile.dragons["1"].Rarity, "Common")
+			Check.equal(profile.dragons["1"].Element, "Fire") -- elementRollValue 0 lands in Fire's bucket
+			Check.equal(profile.dragons["1"].GrowthStage, "Baby_0")
+			Check.equal(profile.dragons["1"].FeedCount, 0)
 			Check.equal(next(profile.pendingHatches), nil)
 			Check.equal(profile.meta.nextEntityId, 2)
 		end,
@@ -120,7 +132,7 @@ local passed = Check.runAll({
 		name = "Stage does not mutate the profile even though it computes new values",
 		run = function()
 			local profile = profileWithPendingHatch("1", "Common", 1005)
-			local ok, staged = ClaimHatchRules.Stage(EGG_CONFIG, profile, { HatchId = "1" }, 1005, 0)
+			local ok, staged = ClaimHatchRules.Stage(EGG_CONFIG, DRAGON_CONFIG, profile, { HatchId = "1" }, 1005, 0, 0)
 
 			Check.isTrue(ok)
 			Check.equal(profile.pendingHatches["1"].Rarity, "Common") -- unchanged until Commit

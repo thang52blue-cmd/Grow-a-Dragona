@@ -22,6 +22,10 @@ local TransactionCode = {
 	NoHatchInProgress = 31,
 	HatchNotReady = 32,
 
+	DragonNotFound = 40,
+	DragonAlreadyAdult = 41,
+	MissingFood = 42,
+
 	InternalError = 100,
 }
 

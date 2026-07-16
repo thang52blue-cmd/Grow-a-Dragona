@@ -10,3 +10,8 @@
   `dragons` (keyed by a shared `meta.nextEntityId` counter, not client requestId); multiple
   concurrent hatches allowed; client-triggered/server-revalidated claim; hatching-egg world model is
   Runtime-only, respawned on rejoin. See `adr/ADR-002-hatch-state-and-dragon-schema.md`.
+- 2026-07-16 — **ADR-003: Feed Dragon schema (Element, GrowthStage, FeedCount).** Added
+  `DragonRecord.Element`/`GrowthStage`/`FeedCount`; Element rolled at hatch via generalized
+  `WeightedRoll.pick` + new `Elements.luau` + placeholder equal-weight `DragonConfig.elementOdds`;
+  Food reuses the existing generic `Profile.inventory` (no new `FoodInventory` bucket); Farm Slot/
+  Nest schema deferred to its own ADR. See `adr/ADR-003-feed-dragon-schema.md`.

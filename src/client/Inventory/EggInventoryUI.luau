@@ -214,8 +214,7 @@ function EggInventoryUI.Init(player: Player, remotesFolder: Folder): ScreenGui
 			end
 
 			local requestId = RequestIdGenerator.Next()
-			local result =
-				transactionRemote:InvokeServer(requestId, TransactionType.StartHatch, { Rarity = rarity })
+			local result = transactionRemote:InvokeServer(requestId, TransactionType.StartHatch, { Rarity = rarity })
 
 			if not result.Success then
 				statusLabel.Text = CODE_MESSAGE[result.Code] or `Hatch failed (code {result.Code}).`

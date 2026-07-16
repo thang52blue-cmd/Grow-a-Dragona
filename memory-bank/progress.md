@@ -35,6 +35,26 @@ smoke-tested):
     decimal/`math.huge`/NaN/over-max amount, unknown rarity, wrong type) are all rejected without
     touching the profile; a disabled tier and an over-`maxPurchaseAmount` request are both
     rejected; `Stage` itself never mutates the profile (only `Commit` does).
+- **Added 2026-07-16 (backlog item 5, Feed Dragon — Rules/Transaction layer only, see
+  `memory-bank/backlog.md` item 5 for what's still pending):** `ci/run-tests.sh fast` → real
+  `PASSED`, 14 specs (up from 12):
+  - `Elements.luau` — fixed-order List/IsValid over the 5 elements, mirrors `Rarities.luau`.
+  - `WeightedRoll.luau` — generalized from Rarity-only to `(orderedKeys, odds, rollValue)` so the
+    same cumulative-bucket algorithm now also rolls Element; all existing call sites updated, no
+    behavior change for Rarity rolling.
+  - `ClaimHatchRules.luau` — a hatched dragon now also rolls an `Element` (independent
+    `math.random()` from Rarity's) and starts `GrowthStage="Baby_0"`, `FeedCount=0`.
+  - `FeedDragonRules.luau` — the actual Validate/Stage/Commit math: a correct-element Feed
+    consumes exactly one owned matching food item (first match in `FoodConfig` order) and advances
+    exactly one `GrowthStage`; wrong-element/no-food rejects `MissingFood` untouched; the 4th Feed
+    transforms to `Adult` exactly once, a 5th rejects `DragonAlreadyAdult` (`FeedCount` never
+    exceeds 4); unknown `DragonUID` rejects `DragonNotFound`; malformed payload rejects
+    `InvalidRequest`; `Stage` never mutates the profile.
+  - `ProfileSchema.luau` — `dragons` entries now validate/default `Element`/`GrowthStage`/
+    `FeedCount` the same additive-field way as `pendingHatches.Position` (pre-feature saves default
+    to Fire/Baby_0/0, not rejected).
+  See `adr/ADR-003-feed-dragon-schema.md` for the full decision record (why Food reuses the
+  generic `Profile.inventory` instead of a new bucket, why `AssignedSlotId` is deferred).
 - `ci/lint.sh` → real `PASSED` (selene + stylua, both clean after adding `selene.toml` — see Known
   gaps — and running `stylua src` once).
 - `rojo serve default.project.json` starts and listens; the client test harness (`src/client/`)
@@ -99,12 +119,17 @@ smoke-tested):
 
 ## What's left
 
-Backlog items 1-2 are done. Item 3 (engine-lane activation ADR) hasn't started. Item 4 (Start
-Hatch/Claim Hatch) is next up and will need a small profile-schema addition (see
-`memory-bank/activeContext.md`'s note on the save-schema gate). Items 5-9 haven't started. The
+Backlog items 1-2 and 4 are done. Item 3 (engine-lane activation ADR) hasn't started. Item 5's
+pure Rules/Transaction layer is done (green specs) but **not yet live-verified in Studio** — this
+session's `rojo serve` was found disconnected (no process listening, dialog in Studio showed a
+stale "synced 1 day ago" prompt); `rojo serve` was restarted in the background but reconnecting
+Studio to it and testing live in Play mode is still pending. Item 5 also still needs Phase B
+world-presence (Nursery area, Baby Dragon spawn from `ReplicatedStorage.DragonModels.Baby`, a Feed
+`ProximityPrompt`) before a player can trigger `FeedDragonTransaction` in-game at all — right now
+it's only reachable by calling the `Transaction` remote directly. Items 6-9 haven't started. The
 test-harness vertical slice's manual Studio click-test is done for both the original harness
-(2026-07-14/15) and the new Buy Egg transaction UI (2026-07-15) — no known outstanding gaps in
-either.
+(2026-07-14/15) and the Buy Egg/Hatch transaction UIs (2026-07-15/16) — no known outstanding gaps
+in either.
 
 ## Known bugs
 
