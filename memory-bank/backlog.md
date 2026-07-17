@@ -105,6 +105,23 @@
    1/4` and its `FeedCount` attribute updated to `1` (no despawn, as expected below Adult). No
    console errors from game code.
 
+   **Update 2026-07-17 (much later, per direct user spec): Feed prompt now hides itself when the
+   player has no matching Food**, instead of staying clickable with a relabeled "Need Food"
+   `ActionText` (the previous behavior let a player trigger a doomed Feed attempt anyway).
+   `src/client/Dragon/FeedPromptController.luau`: when `isFoodOwned` is false, the
+   `ProximityPrompt` is now `Enabled = false` (no button at all, can't be triggered) and a
+   separate, purely client-side `BillboardGui` reads `"Need {Element} Food\n(Visit the Food
+   Shop)"` in its place — e.g. `"Need Dark Food"`, matching the user's own "Need Fire Food"
+   example. This hint is built lazily by the client (not `DragonSpawner`), since it's a
+   presentational read of the local player's own inventory, not server-authoritative world
+   state. No transaction/schema change — `FeedDragonTransaction`'s contract is untouched; an
+   Adult already got no `FeedPrompt` at all (unchanged). `ci/compile-check.sh` → `COMPILE_OK`,
+   `ci/run-tests.sh fast` → `PASSED` (24 specs, unchanged — client-only), `ci/lint.sh` →
+   `PASSED`. **Live-verified in Studio:** zeroing a Baby's Element food server-side and pushing
+   a snapshot flipped its `ProximityPrompt.Enabled` to `false` and showed the hint text exactly
+   as designed; restoring the food flipped it back to `Enabled = true` / `ActionText = "Feed"`
+   and hid the hint. No console errors.
+
 6. ~~**Assign Producer and Collect Nest transactions**~~ — **DONE 2026-07-17** (Rules/Transaction
    layer, live-verified; world-presence not yet built)
    DoD met: `src/shared/Domain/AssignProducerRules.spec.luau` proves only an owned Adult, unassigned
@@ -344,6 +361,124 @@
     Studio + Rojo plugin can connect. Needs a manual/MCP Studio pass next session to confirm the
     fence/tiles render sensibly, a fresh hatch visually lands on slot 1, and the starter egg appears
     and hatches correctly for a brand-new profile.
+
+15. ~~**Hatch reveal cinematic (shake/crack/reveal/summary, rarity-scaled)**~~ — **DONE
+    2026-07-17** (ad-hoc feature request with a mockup + two detailed follow-up spec messages,
+    not part of the original README/GDD-derived list)
+    DoD: every hatch plays the same universal 4-beat structure (shake → crack & flash → reveal →
+    non-blocking summary) regardless of rarity; how dressed-up each beat gets escalates
+    Common→Mythic (camera push-in/FOV, crack/reveal duration, hitch, roar, screen flash, sound
+    layering, particle tier, haptic bucket) per `docs/prd/hatch-reveal-sequence.md` (the full
+    spec, captured verbatim from chat). New `src/shared/Data/HatchVisualConfig.json` (the
+    authored per-rarity numbers/colors/sound cues) + `src/shared/Domain/HatchVisualConfig.luau`
+    (pure `ValidateEscalation` check) + `HatchVisualConfig.spec.luau` (6 cases, proving the real
+    authored config escalates monotonically and rejecting numeric/boolean/haptic regressions).
+    `ci/compile-check.sh` → `COMPILE_OK`, `ci/run-tests.sh fast` → `PASSED` (22 specs, up from
+    21), `ci/lint.sh` → `PASSED`. No save-schema/transaction-contract change — reused
+    `ClaimHatchTransaction`'s existing `DragonId`/`Rarity`/`AssignedSlotId` result and the
+    already-shipped auto-placement (backlog item 14 / ADR-005); this is 100% Runtime-only
+    presentation (AGENTS.md data classification), and per `docs/prd/core-game-loop.md` the reveal
+    never determines RNG or player data.
+    Engine glue: `src/client/Hatch/HatchRevealController.luau` now owns the whole ClaimHatch round
+    trip (previously `AutoClaimController` fired-and-forgot the InvokeServer call) since the
+    shake/crack beats must play *before* the claim and the reveal/summary beats need its result;
+    `AutoClaimController` was trimmed to just noticing when a hatch is ready and delegating. New
+    `src/client/Hatch/SummaryCardUI.luau` (Beat 4: fades ~2s or dismisses on any tap). Camera
+    lock uses `CameraType.Scriptable` + `Humanoid.WalkSpeed/JumpPower/JumpHeight = 0` during the
+    shot, restored the instant the reveal beat ends; concurrent hatches (a supported case per
+    ClaimHatchRules) share one camera via a simple lock/queue rather than fighting over it.
+    10 free Creator Store sound assets were sourced and inserted via the Roblox Studio MCP
+    (`search_asset`/`insert_asset`) into `ReplicatedStorage.HatchSounds`, reused/layered across
+    rarities via per-cue volume/pitch/delay rather than one unique clip per table cell — **flagged
+    as [Unverified]**: matched by keyword search only, several (`MagicChime`, `MagicalSwell`,
+    `RevealPop`/`SparkleTwinkle`, `ShimmerSweep`) are lower-confidence placeholders a real sound
+    pass should audition. Haptics use `HapticService:SetMotor`, gated by `IsVibrationSupported` +
+    `pcall`; **also unverified** — no physical device was attached to confirm real vibration,
+    only that the calls don't error. "Light rays" and the Mythic screen flash are simplified
+    (thin Neon parts / a flat rainbow `Frame` flash, not real Beams or a radial vignette).
+    **Live-verified in Studio Play mode via the Roblox Studio MCP:** real `Transaction:InvokeServer`
+    calls for both a Common hatch (dragon `88`, Common/Water) and a Mythic hatch (dragon `90`,
+    Mythic/Fire — the tier exercising every optional code path: hitch, roar, screen flash,
+    rainbow cascade, multi-layer delayed sound cues) completed with no console errors; camera
+    (`CameraType`/`FieldOfView`) and `Humanoid.WalkSpeed` were confirmed back to their original
+    values immediately after each reveal, and a mid-sequence screenshot showed the camera visibly
+    pushed in tight on the Mythic egg. A pre-existing session quirk unrelated to this feature was
+    hit and worked around: the test player's profile hadn't finished loading via the normal
+    `PlayerAdded` path when Play mode started, so a manual `DataService.Load` call was needed
+    before granting test gold — same class of environment issue flagged in item 7's notes, not a
+    defect in this feature.
+
+16. ~~**Storage: place/manage/swap dragons on Farm Slots**~~ — **DONE 2026-07-17** (ad-hoc
+    feature request, full spec in `docs/prd/storage-and-farm-slot-management.md`)
+    DoD: farm-full overflow already went to Storage (`AssignedSlotId = nil`, backlog item 14) —
+    this item makes Storage actually usable: walking up to an empty slot offers "Place Dragon"
+    (opens a Storage Picker grid, any GrowthStage selectable, closes on pick); walking up to an
+    occupied slot offers "Manage Dragon" → Send to Storage or Swap Dragon (atomic, one commit,
+    no dragon lost/duplicated); a HUD "Collection" button views every owned dragon grouped with
+    a duplicate count, sortable by Rarity/newest, but never places one itself (per direct spec).
+    `AssignProducerTransaction` (Adult-only, zero client callers ever) was renamed/generalized to
+    `PlaceDragonRules`/`PlaceDragonTransaction` (`src/shared/Domain/PlaceDragonRules.spec.luau`,
+    9 cases) rather than kept alongside a new overlapping transaction. New
+    `SendToStorageRules`/`.spec.luau` (8 cases) and `SwapDragonRules`/`.spec.luau` (11 cases,
+    including "neither dragon lost or duplicated" and every rejection code). New
+    `TransactionCode.NestNotEmpty`/`NoDragonInSlot`: tracing `ProductionRules.Advance` showed a
+    slot with `AssignedDragonUID = nil` but `UncollectedEggCount > 0` is a dead state no code
+    recovers from (permanently uncollectable eggs), so Send-to-Storage/Swap hard-reject until the
+    Nest is collected first — this is enforced server-side, not just client UX. No save-schema
+    change and no `adr/` needed (Storage is exactly the pre-existing `AssignedSlotId == nil`
+    state; only a previously-unused transaction's validation rule loosened).
+    `ci/compile-check.sh` → `COMPILE_OK`, `ci/run-tests.sh fast` → `PASSED` (24 specs, up from
+    22), `ci/lint.sh` → `PASSED`. New client modules: `src/client/Storage/StorageCardList.luau`
+    (shared card-grid renderer), `StoragePickerUI.luau`, `ManageDragonMenu.luau`,
+    `FarmSlotPromptController.luau` (wires the new "FarmSlot" tag/prompt, reads the prompt's own
+    `ActionText` to pick Place vs Manage rather than a second attribute that could drift), and
+    `CollectionViewerUI.luau`. `FarmPlotSpawner` tiles gained their first-ever `ProximityPrompt`
+    (`FarmPlotSpawner.UpdateSlotPrompt`, mirroring `NestSpawner.UpdatePileCount`'s
+    refresh-on-every-call pattern); `ClearTestDragons` was fixed to also reset tile prompts back
+    to "Place Dragon" (previously only reset profile/world dragons, leaving stale "Manage Dragon"
+    prompts after a clear). Caught and fixed before shipping: the old `AssignProducer` branch
+    unconditionally called `NestSpawner.EnsureNest` (harmless when Adult-only), which would have
+    incorrectly shown a Nest for a placed/swapped-in Baby now that any GrowthStage is allowed —
+    all three post-commit handlers gate Nest presence on `GrowthStage == "Adult"`, despawning it
+    otherwise.
+    **Live-verified in Studio Play mode via the Roblox Studio MCP:** real `Transaction:
+    InvokeServer` calls end-to-end for Place (Storage → empty slot), Send to Storage (slot →
+    Storage, Nest despawned, prompt reverted to "Place Dragon"), and Swap (atomic — both
+    dragons' world models and both tiles' prompts ended up in the exactly-correct state, `Old`
+    dragon back in the Nursery, `New` dragon on the tile) — confirmed via `ClaimHatch`-created
+    (not directly-mutated) dragons after direct-mutation test dragons hit a `DataService`-cache
+    isolation quirk in this tool's `execute_luau` (mutations from separate `execute_luau` Server
+    calls don't reliably share state with the live running server's cache — Workspace state and
+    the real `Transaction` remote's own return payloads are reliable, and were used for every
+    check instead). Also confirmed via real simulated mouse clicks (not direct API calls): the
+    Storage Picker renders correct cards/sort/accent-colors, and the HUD Collection button opens
+    a correctly-grouped, correctly-counted, on-farm-vs-Storage-labeled view (e.g. two
+    directly-mutated Common Fire Adults correctly merged into one "x2 ... All in Storage" card).
+    No console errors from game code.
+
+    **Update 2026-07-17 (later same day): fixed a design-doc mismatch the user caught** — a
+    Storage dragon still got a world model in the shared "Nursery" folder (a leftover fallback
+    from before this item existed, when unassigned dragons had nowhere else to go). Re-reading
+    `docs/GROW_A_DRAGONA_IMPLEMENTATION_GDD.md` Section 12 confirms: *"Storage isn't a physical
+    building on the plot... there's nothing to walk up to."* `DragonSpawner.Spawn` now no-ops
+    entirely for any dragon with `AssignedSlotId == nil` — only a Farm-Slot-assigned dragon gets
+    a world model at all; a Storage dragon is visible only through the Storage Picker / HUD
+    Collection button, never a physical location. This also deleted the now-dead "Nursery lane
+    grid" position math (`NURSERY_ORIGIN`/`laneOrigin`/`slotPosition`/`playerLane`) since every
+    remaining call to `FarmPlotSpawner.SlotPosition` is now guaranteed non-nil. No transaction/
+    schema change — `SendToStorageTransaction`/`SwapDragonTransaction`'s existing
+    Despawn-then-Spawn post-commit calls already handle this correctly for free (Spawn simply
+    no-ops when the moved-out dragon's `AssignedSlotId` is now `nil`). `ci/compile-check.sh` →
+    `COMPILE_OK`, `ci/run-tests.sh fast` → `PASSED` (24 specs, unchanged — engine-glue only),
+    `ci/lint.sh` → `PASSED`. **Live-verified in Studio:** on a profile with 2 Farm-Slot dragons
+    and 2 Storage dragons, the Nursery folder contained world models for exactly the 2
+    Farm-Slot dragons and none for the 2 Storage ones. No console errors. Known minor gap this
+    surfaces (not fixed, low priority): a hatch that overflows straight to Storage (farm full)
+    now never gets a world model at all, so the hatch-reveal summary card's Element readback
+    (`docs/prd/hatch-reveal-sequence.md`, which reads the newly-spawned model's `Element`
+    attribute since `ClaimHatchTransaction`'s result doesn't carry it) falls back to "Unknown"
+    for that specific case — previously a rare edge case, now the expected outcome whenever a
+    hatch overflows to Storage.
 
 Backlog seeded 2026-07-14 from `README.md`'s "Recommended first MVP slices" (items 1-2 and 4-9 map
 1:1 to README's list 1-8; item 3 is new, inserted to match the `(backlog #3)` references already

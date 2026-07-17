@@ -1,6 +1,6 @@
 local process = require("@lune/process")
 local Check = require("../TestSupport/Check")
-local AssignProducerRules = require("./AssignProducerRules")
+local PlaceDragonRules = require("./PlaceDragonRules")
 local TransactionCode = require("./TransactionCode")
 
 local function baseProfile(dragonOverrides: { [string]: any }?, slotOverrides: { [string]: any }?)
@@ -44,23 +44,23 @@ local function baseProfile(dragonOverrides: { [string]: any }?, slotOverrides: {
 end
 
 local function runFullTransaction(profile, payload, now: number?)
-	local validateOk, validateCode = AssignProducerRules.Validate(payload)
+	local validateOk, validateCode = PlaceDragonRules.Validate(payload)
 	if not validateOk then
 		return false, validateCode
 	end
 
-	local stageOk, staged, stageCode = AssignProducerRules.Stage(profile, payload, now or 1000)
+	local stageOk, staged, stageCode = PlaceDragonRules.Stage(profile, payload, now or 1000)
 	if not stageOk then
 		return false, stageCode
 	end
 
-	local resultData = AssignProducerRules.Commit(profile, staged)
+	local resultData = PlaceDragonRules.Commit(profile, staged)
 	return true, resultData
 end
 
 local passed = Check.runAll({
 	{
-		name = "assigns an owned Adult dragon to an empty slot and starts production at `now`",
+		name = "places an owned Adult dragon into an empty slot and starts production at `now`",
 		run = function()
 			local profile = baseProfile()
 			local ok, resultData = runFullTransaction(profile, { DragonUID = "1", SlotId = 1 }, 5000)
@@ -76,14 +76,16 @@ local passed = Check.runAll({
 		end,
 	},
 	{
-		name = "rejects a Baby dragon with DragonNotAdult",
+		name = "places a Baby dragon into an empty slot without starting production (unlike the old Adult-only gate)",
 		run = function()
 			local profile = baseProfile({ GrowthStage = "Baby_3", FeedCount = 3 })
-			local ok, code = runFullTransaction(profile, { DragonUID = "1", SlotId = 1 })
+			local ok, resultData = runFullTransaction(profile, { DragonUID = "1", SlotId = 1 }, 5000)
 
-			Check.isFalse(ok)
-			Check.equal(code, TransactionCode.DragonNotAdult)
-			Check.equal(profile.farmSlots[1].AssignedDragonUID, nil)
+			Check.isTrue(ok)
+			Check.equal(resultData.DragonUID, "1")
+			Check.equal(profile.dragons["1"].AssignedSlotId, 1)
+			Check.equal(profile.farmSlots[1].AssignedDragonUID, "1")
+			Check.equal(profile.farmSlots[1].ProductionStartedAt, nil)
 		end,
 	},
 	{
@@ -144,7 +146,7 @@ local passed = Check.runAll({
 		end,
 	},
 	{
-		name = "a duplicated Assign request applied twice rejects the second with DragonAlreadyAssigned",
+		name = "a duplicated Place request applied twice rejects the second with DragonAlreadyAssigned",
 		run = function()
 			local profile = baseProfile()
 			local ok1 = runFullTransaction(profile, { DragonUID = "1", SlotId = 1 })
@@ -159,7 +161,7 @@ local passed = Check.runAll({
 		name = "Stage does not mutate the profile even though it computes new values",
 		run = function()
 			local profile = baseProfile()
-			local ok, staged = AssignProducerRules.Stage(profile, { DragonUID = "1", SlotId = 1 }, 5000)
+			local ok, staged = PlaceDragonRules.Stage(profile, { DragonUID = "1", SlotId = 1 }, 5000)
 
 			Check.isTrue(ok)
 			Check.equal(profile.dragons["1"].AssignedSlotId, nil) -- unchanged until Commit

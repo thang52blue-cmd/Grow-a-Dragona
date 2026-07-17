@@ -1,14 +1,18 @@
 -- Engine-glue for owned-dragon world presence. Spawns a clone of ReplicatedStorage.DragonModels
--- .Baby or .Adult (picked from dragon.GrowthStage) for every owned dragon: one already assigned
--- to a Farm Slot (every dragon gets one automatically at hatch now, see ClaimHatchRules) stands
--- on its FarmPlotSpawner tile; one with no slot (every slot already occupied at hatch time, the
--- closest MVP equivalent of "overflow to storage") falls back to the shared placeholder
--- "Nursery" holding area. A Baby gets a Feed ProximityPrompt whose Triggered handler is wired
--- client-side (src/client/Dragon/FeedPromptController.luau) to call FeedDragonTransaction with
--- only the DragonUID (AGENTS.md: clients request actions, server owns state); an Adult gets no
--- prompt (nothing to feed). This is Runtime-only decoration -- the persistent GrowthStage/
--- FeedCount/AssignedSlotId lives on the profile; nothing here is saved, same pattern as
--- HatchSpawner.luau for hatching eggs. See adr/ADR-005-farm-plot-and-starter-hatch.md.
+-- .Baby or .Adult (picked from dragon.GrowthStage) for a dragon assigned to a Farm Slot, standing
+-- on its FarmPlotSpawner tile. A dragon in Storage (AssignedSlotId == nil) gets NO world model at
+-- all -- per docs/GROW_A_DRAGONA_IMPLEMENTATION_GDD.md Section 12: "Storage isn't a physical
+-- building on the plot... there's nothing to walk up to." It's browsed only through the Storage
+-- Picker / HUD Collection button (src/client/Storage/), never a physical location. This
+-- supersedes an earlier pass's "Nursery holding area" fallback for unassigned dragons -- the
+-- container folder is still named "Nursery" (kept as-is; other modules like
+-- HatchRevealController hardcode that path) but it now only ever holds Farm-Slot-positioned
+-- models. A Baby gets a Feed ProximityPrompt whose Triggered handler is wired client-side
+-- (src/client/Dragon/FeedPromptController.luau) to call FeedDragonTransaction with only the
+-- DragonUID (AGENTS.md: clients request actions, server owns state); an Adult gets no prompt
+-- (nothing to feed). This is Runtime-only decoration -- the persistent GrowthStage/FeedCount/
+-- AssignedSlotId lives on the profile; nothing here is saved, same pattern as HatchSpawner.luau
+-- for hatching eggs. See adr/ADR-005-farm-plot-and-starter-hatch.md.
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -21,30 +25,7 @@ local NURSERY_FOLDER_NAME = "Nursery"
 local BABY_DRAGON_TAG = "BabyDragon"
 local ADULT_DRAGON_TAG = "AdultDragon"
 
--- Placeholder MVP location, chosen clear of Workspace.SpawnLocation (0, 0.5, -79) and within
--- Workspace.Baseplate's bounds (2048x16x2048 centered at origin, top surface at Y=0). Y=0
--- here is the ground surface a spawned model's bounding box gets rested on (see
--- placeModelOnGround), not the model's own position.
-local NURSERY_ORIGIN = Vector3.new(60, 0, -40)
-local LANE_SPACING = Vector3.new(25, 0, 0)
-local SLOT_SPACING = Vector3.new(6, 0, 0)
-local ROW_SPACING = Vector3.new(0, 0, 6)
-local SLOTS_PER_ROW = 5
-
 local DragonSpawner = {}
-
-local playerLane: { [Player]: number } = {}
-local nextLane = 0
-
-local function laneOrigin(player: Player): Vector3
-	local lane = playerLane[player]
-	if not lane then
-		lane = nextLane
-		nextLane += 1
-		playerLane[player] = lane
-	end
-	return NURSERY_ORIGIN + LANE_SPACING * lane
-end
 
 local function playerFolder(player: Player): Folder
 	local root = Workspace:FindFirstChild(NURSERY_FOLDER_NAME)
@@ -67,12 +48,6 @@ end
 local function findPlayerFolder(player: Player): Folder?
 	local root = Workspace:FindFirstChild(NURSERY_FOLDER_NAME)
 	return root and (root:FindFirstChild(tostring(player.UserId)) :: Folder?)
-end
-
-local function slotPosition(player: Player, slotIndex: number): Vector3
-	local row = math.floor(slotIndex / SLOTS_PER_ROW)
-	local col = slotIndex % SLOTS_PER_ROW
-	return laneOrigin(player) + SLOT_SPACING * col + ROW_SPACING * row
 end
 
 -- Full debug-friendly status text -- Rarity + Element + exact GrowthStage (not just a Baby/Adult
@@ -118,11 +93,16 @@ local function addStatusBillboard(clone: Model, text: string): TextLabel
 end
 
 -- Spawns one Dragon model (Baby or Adult variant, picked from dragon.GrowthStage) for an
--- already-known dragon record. No-op if a model for this DragonUID already exists (rejoin-safe,
--- mirrors HatchSpawner.Spawn's tolerance of a missing source model). A Baby gets a Feed
--- ProximityPrompt; an Adult does not (nothing to feed) -- see FeedPromptController, which only
--- attaches to the BABY_DRAGON_TAG.
+-- already-known dragon record. No-op if the dragon is in Storage (AssignedSlotId == nil --
+-- Storage has no physical presence, see this module's header) or if a model for this DragonUID
+-- already exists (rejoin-safe, mirrors HatchSpawner.Spawn's tolerance of a missing source
+-- model). A Baby gets a Feed ProximityPrompt; an Adult does not (nothing to feed) -- see
+-- FeedPromptController, which only attaches to the BABY_DRAGON_TAG.
 function DragonSpawner.Spawn(player: Player, dragonUID: string, dragon: Types.DragonRecord)
+	if dragon.AssignedSlotId == nil then
+		return
+	end
+
 	local folder = playerFolder(player)
 	if folder:FindFirstChild(dragonUID) then
 		return
@@ -146,9 +126,7 @@ function DragonSpawner.Spawn(player: Player, dragonUID: string, dragon: Types.Dr
 		end
 	end
 
-	local position = if dragon.AssignedSlotId
-		then FarmPlotSpawner.SlotPosition(player, dragon.AssignedSlotId)
-		else slotPosition(player, #folder:GetChildren())
+	local position = FarmPlotSpawner.SlotPosition(player, dragon.AssignedSlotId)
 	placeModelOnGround(clone, position)
 
 	clone:SetAttribute("DragonUID", dragonUID)
@@ -214,9 +192,9 @@ function DragonSpawner.Despawn(player: Player, dragonUID: string)
 	end
 end
 
--- Recreates a Dragon model for every owned dragon (Baby or Adult, assigned to a Farm Slot or
--- not) -- called once the player's character has loaded, so dragons fed/grown/placed in a
--- previous session reappear exactly where they were.
+-- Recreates a Dragon model for every owned dragon that's actually assigned to a Farm Slot
+-- (Spawn itself no-ops for a Storage dragon) -- called once the player's character has loaded,
+-- so dragons fed/grown/placed in a previous session reappear exactly where they were.
 function DragonSpawner.RespawnAll(player: Player, profile: Types.Profile)
 	for dragonUID, dragon in profile.dragons do
 		DragonSpawner.Spawn(player, dragonUID, dragon)
@@ -228,7 +206,6 @@ function DragonSpawner.DespawnAll(player: Player)
 	if folder then
 		folder:Destroy()
 	end
-	playerLane[player] = nil
 end
 
 return DragonSpawner

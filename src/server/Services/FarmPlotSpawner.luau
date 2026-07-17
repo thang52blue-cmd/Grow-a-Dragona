@@ -7,11 +7,13 @@
 -- Runtime-only geometry, same pattern as DragonSpawner/HatchSpawner's Nursery/HatchingEggs
 -- folders -- nothing here is saved; it's rebuilt from the persisted farmSlots data whenever
 -- a player's plot is (re)ensured.
+local CollectionService = game:GetService("CollectionService")
 local Workspace = game:GetService("Workspace")
 
 local FarmPlotSpawner = {}
 
 local FARM_PLOTS_FOLDER_NAME = "FarmPlots"
+local FARM_SLOT_TAG = "FarmSlot"
 -- Clear of Workspace.SpawnLocation (0, 0.5, -79), Workspace.Baseplate (2048x16x2048 centered
 -- at the origin), and DragonSpawner's Nursery placeholder (60, 3, -40) -- see that module's
 -- own placement comment.
@@ -145,6 +147,29 @@ local function ensureTile(folder: Folder, player: Player, slotId: number)
 	tile.CFrame = CFrame.new(tileWorldPosition(player, slotId))
 	tile:SetAttribute("SlotId", slotId)
 	tile.Parent = folder
+
+	-- Storage feature (docs/prd/storage-and-farm-slot-management.md): every tile is a walk-up
+	-- interaction point for placing/managing a dragon. ActionText starts "Place Dragon" (every
+	-- freshly-built tile starts empty); FarmPlotSpawner.UpdateSlotPrompt flips it to "Manage
+	-- Dragon" once/if the slot gets occupied, same "refresh on every call" split as
+	-- NestSpawner.UpdatePileCount (this constructor only ever runs once per tile; occupancy
+	-- changes far more often than that).
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "FarmSlotPrompt"
+	prompt.ActionText = "Place Dragon"
+	prompt.ObjectText = "Farm Slot"
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 10
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = tile
+
+	CollectionService:AddTag(tile, FARM_SLOT_TAG)
+end
+
+local function findTile(player: Player, slotId: number): BasePart?
+	local root = Workspace:FindFirstChild(FARM_PLOTS_FOLDER_NAME)
+	local folder = root and root:FindFirstChild(tostring(player.UserId))
+	return folder and (folder:FindFirstChild("Slot" .. slotId) :: BasePart?)
 end
 
 -- Builds the player's Farm Plot on first call (ground + fence, sized to fit exactly the
@@ -160,6 +185,20 @@ function FarmPlotSpawner.EnsurePlot(player: Player, slotIds: { number })
 	for _, slotId in slotIds do
 		ensureTile(folder, player, slotId)
 	end
+end
+
+-- Flips a tile's ProximityPrompt between "Place Dragon" (slot empty) and "Manage Dragon" (slot
+-- occupied) -- safe to call any time a slot's occupancy might have changed (PlaceDragon,
+-- SendToStorage, SwapDragon, and hatch-time auto-placement all call this) as well as once per
+-- slot on PlayerAdded, so a rejoining player's tiles reflect the profile's real current state
+-- rather than whatever a freshly-built tile defaults to.
+function FarmPlotSpawner.UpdateSlotPrompt(player: Player, slotId: number, isOccupied: boolean)
+	local tile = findTile(player, slotId)
+	local prompt = tile and (tile:FindFirstChildWhichIsA("ProximityPrompt") :: ProximityPrompt?)
+	if not prompt then
+		return
+	end
+	prompt.ActionText = if isOccupied then "Manage Dragon" else "Place Dragon"
 end
 
 -- World position of the walkable top surface of a given Farm Slot's tile -- callers that

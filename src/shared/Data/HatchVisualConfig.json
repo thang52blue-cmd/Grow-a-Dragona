@@ -1,0 +1,179 @@
+{
+  "Common": {
+    "shakeDurationSeconds": 0.3,
+    "shakeMagnitudeStuds": 0.05,
+    "crackDurationSeconds": 0.5,
+    "revealDurationSeconds": 1.0,
+    "cameraPushInStuds": 2,
+    "cameraFovDelta": 5,
+    "hasHitch": false,
+    "hitchDurationSeconds": 0,
+    "hitchIsSlowMotion": false,
+    "hasRoar": false,
+    "roarDurationSeconds": 0,
+    "hasScreenFlash": false,
+    "shakeSounds": [
+      { "name": "EggRattle", "volume": 0.4, "pitch": 1.2 }
+    ],
+    "crackSounds": [
+      { "name": "EggCrack", "volume": 0.6, "pitch": 1.0 }
+    ],
+    "revealSounds": [
+      { "name": "RevealPop", "volume": 0.6, "pitch": 1.0 },
+      { "name": "SparkleTwinkle", "volume": 0.3, "pitch": 1.1 }
+    ],
+    "particleColor": [200, 200, 200],
+    "particleSizeScale": 1.0,
+    "hasShockwaveRing": false,
+    "hasLightRays": false,
+    "hasRainbowCascade": false,
+    "hapticBucket": "Light",
+    "toastAccentColor": [220, 220, 220],
+    "toastSuffix": ""
+  },
+  "Rare": {
+    "shakeDurationSeconds": 0.3,
+    "shakeMagnitudeStuds": 0.07,
+    "crackDurationSeconds": 0.5,
+    "revealDurationSeconds": 1.2,
+    "cameraPushInStuds": 3,
+    "cameraFovDelta": 8,
+    "hasHitch": false,
+    "hitchDurationSeconds": 0,
+    "hitchIsSlowMotion": false,
+    "hasRoar": false,
+    "roarDurationSeconds": 0,
+    "hasScreenFlash": false,
+    "shakeSounds": [
+      { "name": "EggRattle", "volume": 0.45, "pitch": 1.0 }
+    ],
+    "crackSounds": [
+      { "name": "EggCrack", "volume": 0.6, "pitch": 1.0 },
+      { "name": "MagicChime", "volume": 0.3, "pitch": 1.3, "stopAfterSeconds": 0.4 }
+    ],
+    "revealSounds": [
+      { "name": "RevealPop", "volume": 0.6, "pitch": 1.0 },
+      { "name": "SparkleTwinkle", "volume": 0.5, "pitch": 1.1 }
+    ],
+    "particleColor": [90, 160, 255],
+    "particleSizeScale": 1.3,
+    "hasShockwaveRing": false,
+    "hasLightRays": false,
+    "hasRainbowCascade": false,
+    "hapticBucket": "Medium",
+    "toastAccentColor": [90, 160, 255],
+    "toastSuffix": ""
+  },
+  "Epic": {
+    "shakeDurationSeconds": 0.3,
+    "shakeMagnitudeStuds": 0.09,
+    "crackDurationSeconds": 0.7,
+    "revealDurationSeconds": 1.3,
+    "cameraPushInStuds": 4,
+    "cameraFovDelta": 12,
+    "hasHitch": true,
+    "hitchDurationSeconds": 0.15,
+    "hitchIsSlowMotion": false,
+    "hasRoar": false,
+    "roarDurationSeconds": 0,
+    "hasScreenFlash": false,
+    "shakeSounds": [
+      { "name": "EggRattle", "volume": 0.45, "pitch": 0.95 },
+      { "name": "MagicHum", "volume": 0.15, "pitch": 1.0, "looped": true }
+    ],
+    "crackSounds": [
+      { "name": "EggCrack", "volume": 0.6, "pitch": 1.0 },
+      { "name": "MagicChime", "volume": 0.45, "pitch": 1.3 }
+    ],
+    "revealSounds": [
+      { "name": "RevealPop", "volume": 0.6, "pitch": 1.0 },
+      { "name": "MagicalSwell", "volume": 0.35, "pitch": 1.0 },
+      { "name": "ShimmerSweep", "volume": 0.25, "pitch": 1.0, "delaySeconds": 0.15 }
+    ],
+    "particleColor": [170, 90, 230],
+    "particleSizeScale": 1.6,
+    "hasShockwaveRing": true,
+    "hasLightRays": false,
+    "hasRainbowCascade": false,
+    "hapticBucket": "Medium",
+    "toastAccentColor": [170, 90, 230],
+    "toastSuffix": ""
+  },
+  "Legendary": {
+    "shakeDurationSeconds": 0.3,
+    "shakeMagnitudeStuds": 0.12,
+    "crackDurationSeconds": 0.9,
+    "revealDurationSeconds": 1.5,
+    "cameraPushInStuds": 6,
+    "cameraFovDelta": 16,
+    "hasHitch": true,
+    "hitchDurationSeconds": 0.3,
+    "hitchIsSlowMotion": true,
+    "hasRoar": true,
+    "roarDurationSeconds": 0.6,
+    "hasScreenFlash": false,
+    "shakeSounds": [
+      { "name": "EggRattle", "volume": 0.5, "pitch": 0.8 },
+      { "name": "MagicHum", "volume": 0.3, "pitch": 0.95, "looped": true }
+    ],
+    "crackSounds": [
+      { "name": "EggCrack", "volume": 0.65, "pitch": 0.95 },
+      { "name": "MagicChime", "volume": 0.45, "pitch": 1.3 },
+      { "name": "BrassHit", "volume": 0.5, "pitch": 1.0, "delaySeconds": 0.2 }
+    ],
+    "revealSounds": [
+      { "name": "RevealPop", "volume": 0.6, "pitch": 1.0 },
+      { "name": "MagicalSwell", "volume": 0.55, "pitch": 0.95 },
+      { "name": "DragonRoar", "volume": 0.6, "pitch": 1.0, "delaySeconds": 0.3, "stopAfterSeconds": 0.6 }
+    ],
+    "particleColor": [255, 205, 60],
+    "particleSizeScale": 2.0,
+    "hasShockwaveRing": true,
+    "hasLightRays": true,
+    "hasRainbowCascade": false,
+    "hapticBucket": "Strong",
+    "toastAccentColor": [255, 205, 60],
+    "toastSuffix": ""
+  },
+  "Mythic": {
+    "shakeDurationSeconds": 0.3,
+    "shakeMagnitudeStuds": 0.15,
+    "crackDurationSeconds": 1.1,
+    "revealDurationSeconds": 1.8,
+    "cameraPushInStuds": 8,
+    "cameraFovDelta": 20,
+    "hasHitch": true,
+    "hitchDurationSeconds": 0.45,
+    "hitchIsSlowMotion": true,
+    "hasRoar": true,
+    "roarDurationSeconds": 1.0,
+    "hasScreenFlash": true,
+    "shakeSounds": [
+      { "name": "EggRattle", "volume": 0.55, "pitch": 0.65 },
+      { "name": "MagicHum", "volume": 0.45, "pitch": 0.85, "looped": true },
+      { "name": "ShimmerSweep", "volume": 0.2, "pitch": 1.0, "delaySeconds": 0.15 }
+    ],
+    "crackSounds": [
+      { "name": "EggCrack", "volume": 0.7, "pitch": 0.9 },
+      { "name": "MagicChime", "volume": 0.45, "pitch": 1.3 },
+      { "name": "BrassHit", "volume": 0.55, "pitch": 1.0, "delaySeconds": 0.2 },
+      { "name": "ShimmerSweep", "volume": 0.5, "pitch": 1.05, "delaySeconds": 0.4 }
+    ],
+    "revealSounds": [
+      { "name": "RevealPop", "volume": 0.6, "pitch": 1.0 },
+      { "name": "MagicalSwell", "volume": 0.7, "pitch": 0.9 },
+      { "name": "DragonRoar", "volume": 0.75, "pitch": 0.95, "delaySeconds": 0.3, "stopAfterSeconds": 1.0 },
+      { "name": "SparkleTwinkle", "volume": 0.5, "pitch": 1.1, "delaySeconds": 1.2 },
+      { "name": "SparkleTwinkle", "volume": 0.4, "pitch": 1.25, "delaySeconds": 1.4 },
+      { "name": "SparkleTwinkle", "volume": 0.3, "pitch": 1.4, "delaySeconds": 1.6 }
+    ],
+    "particleColor": [255, 255, 255],
+    "particleSizeScale": 2.5,
+    "hasShockwaveRing": true,
+    "hasLightRays": true,
+    "hasRainbowCascade": true,
+    "hapticBucket": "Strong",
+    "toastAccentColor": [255, 255, 255],
+    "toastSuffix": " (WOW!)"
+  }
+}

@@ -39,6 +39,51 @@ export type DragonConfig = {
 	rarities: { [Rarity]: RarityConfig },
 }
 
+export type HapticBucket = "Light" | "Medium" | "Strong"
+
+-- One layered sound cue referencing a Sound template by name under
+-- ReplicatedStorage.HatchSounds (see src/client/Hatch/HatchRevealController.luau). `delaySeconds`
+-- staggers a layer's start against the rest of its beat (e.g. Mythic's sparkle-cascade tail
+-- lingering after everything else stops); `stopAfterSeconds` truncates a long source clip (e.g.
+-- DragonRoar) to a controlled envelope rather than requiring a separately-cut audio asset for
+-- "short" vs "long" roar.
+export type HatchSoundCue = {
+	name: string,
+	volume: number,
+	pitch: number,
+	delaySeconds: number?,
+	stopAfterSeconds: number?,
+	looped: boolean?,
+}
+
+export type HatchVisualTierConfig = {
+	shakeDurationSeconds: number,
+	shakeMagnitudeStuds: number,
+	crackDurationSeconds: number,
+	revealDurationSeconds: number,
+	cameraPushInStuds: number,
+	cameraFovDelta: number,
+	hasHitch: boolean,
+	hitchDurationSeconds: number,
+	hitchIsSlowMotion: boolean,
+	hasRoar: boolean,
+	roarDurationSeconds: number,
+	hasScreenFlash: boolean,
+	shakeSounds: { HatchSoundCue },
+	crackSounds: { HatchSoundCue },
+	revealSounds: { HatchSoundCue },
+	particleColor: { number },
+	particleSizeScale: number,
+	hasShockwaveRing: boolean,
+	hasLightRays: boolean,
+	hasRainbowCascade: boolean,
+	hapticBucket: HapticBucket,
+	toastAccentColor: { number },
+	toastSuffix: string,
+}
+
+export type HatchVisualConfig = { [Rarity]: HatchVisualTierConfig }
+
 export type GrowthStage = "Baby_0" | "Baby_1" | "Baby_2" | "Baby_3" | "Adult"
 
 export type FoodConfig = { [Element]: { string } }

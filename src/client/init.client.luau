@@ -13,6 +13,9 @@ local AutoClaimController = require(script.Hatch.AutoClaimController)
 local FeedPromptController = require(script.Dragon.FeedPromptController)
 local CollectPromptController = require(script.Production.CollectPromptController)
 local SellPromptController = require(script.Production.SellPromptController)
+local FarmSlotPromptController = require(script.Storage.FarmSlotPromptController)
+local CollectionViewerUI = require(script.Storage.CollectionViewerUI)
+local SellScreenUI = require(script.Market.SellScreenUI)
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "TestHarness"
@@ -67,6 +70,7 @@ type ProfileSnapshot = {
 	inventory: { [string]: number },
 	pendingHatches: { [string]: PendingHatch },
 	dragons: { [string]: any },
+	productionEggInventory: { [string]: any },
 	lastError: string?,
 }
 
@@ -89,9 +93,13 @@ EggShopUI.Init(player, remotesFolder)
 FoodShopUI.Init(player, remotesFolder)
 EggInventoryUI.Init(player, remotesFolder)
 HatchCountdownController.Init()
-AutoClaimController.Init(remotesFolder, RequestIdGenerator, function()
+AutoClaimController.Init(player, remotesFolder, RequestIdGenerator, function()
 	return latestPendingHatches
 end)
 FeedPromptController.Init(remotesFolder, RequestIdGenerator)
 CollectPromptController.Init(remotesFolder, RequestIdGenerator)
-SellPromptController.Init(remotesFolder, RequestIdGenerator)
+FarmSlotPromptController.Init(player, remotesFolder, RequestIdGenerator)
+CollectionViewerUI.Init(player, remotesFolder)
+
+local sellScreen = SellScreenUI.Init(player, remotesFolder)
+SellPromptController.Init(sellScreen.Open)

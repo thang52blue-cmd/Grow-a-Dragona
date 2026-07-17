@@ -25,7 +25,9 @@ local BuyFoodTransaction = require(script.Transactions.Economy.BuyFoodTransactio
 local StartHatchTransaction = require(script.Transactions.Hatching.StartHatchTransaction)
 local ClaimHatchTransaction = require(script.Transactions.Hatching.ClaimHatchTransaction)
 local FeedDragonTransaction = require(script.Transactions.Dragon.FeedDragonTransaction)
-local AssignProducerTransaction = require(script.Transactions.Production.AssignProducerTransaction)
+local PlaceDragonTransaction = require(script.Transactions.Production.PlaceDragonTransaction)
+local SendToStorageTransaction = require(script.Transactions.Production.SendToStorageTransaction)
+local SwapDragonTransaction = require(script.Transactions.Production.SwapDragonTransaction)
 local CollectNestTransaction = require(script.Transactions.Production.CollectNestTransaction)
 local SellProductionEggTransaction = require(script.Transactions.Economy.SellProductionEggTransaction)
 
@@ -54,8 +56,12 @@ TransactionService.RegisterHandler(TransactionType.ClaimHatch, ClaimHatchTransac
 TransactionService.SetTypeRateLimit(TransactionType.ClaimHatch, 10, 2)
 TransactionService.RegisterHandler(TransactionType.FeedDragon, FeedDragonTransaction)
 TransactionService.SetTypeRateLimit(TransactionType.FeedDragon, 10, 2)
-TransactionService.RegisterHandler(TransactionType.AssignProducer, AssignProducerTransaction)
-TransactionService.SetTypeRateLimit(TransactionType.AssignProducer, 10, 2)
+TransactionService.RegisterHandler(TransactionType.PlaceDragon, PlaceDragonTransaction)
+TransactionService.SetTypeRateLimit(TransactionType.PlaceDragon, 10, 2)
+TransactionService.RegisterHandler(TransactionType.SendToStorage, SendToStorageTransaction)
+TransactionService.SetTypeRateLimit(TransactionType.SendToStorage, 10, 2)
+TransactionService.RegisterHandler(TransactionType.SwapDragon, SwapDragonTransaction)
+TransactionService.SetTypeRateLimit(TransactionType.SwapDragon, 10, 2)
 TransactionService.RegisterHandler(TransactionType.CollectNest, CollectNestTransaction)
 TransactionService.SetTypeRateLimit(TransactionType.CollectNest, 10, 2)
 TransactionService.RegisterHandler(TransactionType.SellProductionEgg, SellProductionEggTransaction)
@@ -78,17 +84,26 @@ local function snapshotOf(player: Player): {
 	inventory: { [string]: number },
 	pendingHatches: { [string]: any },
 	dragons: { [string]: any },
+	productionEggInventory: Types.ProductionEggInventoryByRarity,
 	lastError: string?,
 }
 	local profile = DataService.Get(player.UserId)
 	if not profile then
-		return { gold = 0, inventory = {}, pendingHatches = {}, dragons = {}, lastError = "profile not loaded" }
+		return {
+			gold = 0,
+			inventory = {},
+			pendingHatches = {},
+			dragons = {},
+			productionEggInventory = {} :: any,
+			lastError = "profile not loaded",
+		}
 	end
 	return {
 		gold = profile.gold,
 		inventory = profile.inventory,
 		pendingHatches = profile.pendingHatches,
 		dragons = profile.dragons,
+		productionEggInventory = profile.productionEggInventory,
 		lastError = nil,
 	}
 end
@@ -154,6 +169,9 @@ Players.PlayerAdded:Connect(function(player: Player)
 			end
 			table.sort(slotIds)
 			FarmPlotSpawner.EnsurePlot(player, slotIds)
+			for slotId, slot in profile.farmSlots do
+				FarmPlotSpawner.UpdateSlotPrompt(player, slotId, slot.AssignedDragonUID ~= nil)
+			end
 
 			-- Free first-join Hatching Egg (GDD Section 1) -- granted at most once per
 			-- profile (StarterHatchRules.ShouldGrant), directly here rather than through
@@ -311,9 +329,11 @@ fastForwardProduction.OnServerEvent:Connect(function(player: Player, slotIdRaw: 
 end)
 
 -- Wipes every owned dragon and any Farm Slot assignment referencing one, then despawns the
--- Nursery so a tester can restart the Hatch->Feed->Assign->Collect loop from a clean slate.
--- Test-only lever, same rationale as AddTestFood/AddTestDragon -- never touches gold/inventory/
--- eggs, only the dragon-related profile sections plus their Runtime-only world models.
+-- Nursery and any Nest models (a cleared dragon can no longer have an uncollected egg pile
+-- sitting in the world) so a tester can restart the Hatch->Feed->Assign->Collect loop from a
+-- clean slate. Test-only lever, same rationale as AddTestFood/AddTestDragon -- never touches
+-- gold/productionEggInventory (already-collected eggs), only the dragon-related profile
+-- sections plus their Runtime-only world models.
 clearTestDragons.OnServerEvent:Connect(function(player: Player)
 	local profile = DataService.Get(player.UserId)
 	if not profile then
@@ -330,9 +350,11 @@ clearTestDragons.OnServerEvent:Connect(function(player: Player)
 			UncollectedEggCount = 0,
 			IsProductionPaused = false,
 		}
+		FarmPlotSpawner.UpdateSlotPrompt(player, slotId, false)
 	end
 
 	DragonSpawner.DespawnAll(player)
+	NestSpawner.DespawnAll(player)
 	pushSnapshot(player, nil)
 end)
 
@@ -355,6 +377,11 @@ transactionRemote.OnServerInvoke = function(player: Player, requestId: unknown, 
 			local dragon = profile and profile.dragons[result.Data.DragonId]
 			if dragon then
 				DragonSpawner.Spawn(player, result.Data.DragonId, dragon)
+				-- Hatch-time auto-placement (ClaimHatchRules) can land straight into a Farm
+				-- Slot, same as a manual Place -- the tile's prompt must reflect that too.
+				if dragon.AssignedSlotId then
+					FarmPlotSpawner.UpdateSlotPrompt(player, dragon.AssignedSlotId, true)
+				end
 			end
 		end
 	elseif result.Success and typeId == TransactionType.FeedDragon and result.Data then
@@ -377,17 +404,60 @@ transactionRemote.OnServerInvoke = function(player: Player, requestId: unknown, 
 		else
 			DragonSpawner.UpdateFeedCount(player, result.Data.DragonUID, result.Data.FeedCount)
 		end
-	elseif result.Success and typeId == TransactionType.AssignProducer and result.Data then
-		-- Manual re-assignment (e.g. a future Storage/swap flow) moves a dragon's world
-		-- model to its newly-assigned slot the same way a fresh hatch does.
+	elseif result.Success and typeId == TransactionType.PlaceDragon and result.Data then
+		-- Storage -> Farm Slot (any GrowthStage, see PlaceDragonRules/docs/prd/
+		-- storage-and-farm-slot-management.md). Moves the world model to its newly-assigned
+		-- slot the same way a fresh hatch does; only shows a Nest if the placed dragon is
+		-- actually Adult (NestSpawner's own rule: "the nest only exists once a dragon is
+		-- Adult") -- unlike the old Adult-only AssignProducer branch this replaces, a placed
+		-- Baby must NOT get a Nest, so any stale one at this slot is despawned instead.
+		DragonSpawner.Despawn(player, result.Data.DragonUID)
+		local profile = DataService.Get(player.UserId)
+		local dragon = profile and profile.dragons[result.Data.DragonUID]
+		if dragon then
+			DragonSpawner.Spawn(player, result.Data.DragonUID, dragon)
+			if dragon.GrowthStage == "Adult" then
+				local slotPosition = FarmPlotSpawner.SlotPosition(player, result.Data.SlotId)
+				NestSpawner.EnsureNest(player, result.Data.SlotId, slotPosition, 0)
+			else
+				NestSpawner.Despawn(player, result.Data.SlotId)
+			end
+			FarmPlotSpawner.UpdateSlotPrompt(player, result.Data.SlotId, true)
+		end
+	elseif result.Success and typeId == TransactionType.SendToStorage and result.Data then
+		-- Farm Slot -> Storage: the world model moves back to the Nursery (DragonSpawner
+		-- positions off AssignedSlotId, now nil) and the slot's Nest goes away -- no dragon
+		-- means no production, so nothing should be left growing there.
 		DragonSpawner.Despawn(player, result.Data.DragonUID)
 		local profile = DataService.Get(player.UserId)
 		local dragon = profile and profile.dragons[result.Data.DragonUID]
 		if dragon then
 			DragonSpawner.Spawn(player, result.Data.DragonUID, dragon)
 		end
-		local slotPosition = FarmPlotSpawner.SlotPosition(player, result.Data.SlotId)
-		NestSpawner.EnsureNest(player, result.Data.SlotId, slotPosition, 0)
+		NestSpawner.Despawn(player, result.Data.SlotId)
+		FarmPlotSpawner.UpdateSlotPrompt(player, result.Data.SlotId, false)
+	elseif result.Success and typeId == TransactionType.SwapDragon and result.Data then
+		-- Both dragons move in the same post-commit pass, mirroring the already-atomic Rules
+		-- commit: the old occupant goes back to the Nursery, the new one takes the slot, and
+		-- the Nest reflects whichever dragon is there now (or disappears if it's a Baby).
+		DragonSpawner.Despawn(player, result.Data.OldDragonUID)
+		DragonSpawner.Despawn(player, result.Data.NewDragonUID)
+		local profile = DataService.Get(player.UserId)
+		local oldDragon = profile and profile.dragons[result.Data.OldDragonUID]
+		if oldDragon then
+			DragonSpawner.Spawn(player, result.Data.OldDragonUID, oldDragon)
+		end
+		local newDragon = profile and profile.dragons[result.Data.NewDragonUID]
+		if newDragon then
+			DragonSpawner.Spawn(player, result.Data.NewDragonUID, newDragon)
+			if newDragon.GrowthStage == "Adult" then
+				local slotPosition = FarmPlotSpawner.SlotPosition(player, result.Data.SlotId)
+				NestSpawner.EnsureNest(player, result.Data.SlotId, slotPosition, 0)
+			else
+				NestSpawner.Despawn(player, result.Data.SlotId)
+			end
+			FarmPlotSpawner.UpdateSlotPrompt(player, result.Data.SlotId, true)
+		end
 	elseif result.Success and typeId == TransactionType.CollectNest and result.Data then
 		local slotPosition = FarmPlotSpawner.SlotPosition(player, result.Data.SlotId)
 		NestSpawner.EnsureNest(player, result.Data.SlotId, slotPosition, 0)
