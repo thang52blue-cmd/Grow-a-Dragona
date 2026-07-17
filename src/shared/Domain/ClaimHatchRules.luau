@@ -13,11 +13,30 @@ local ClaimHatchRules = {}
 export type StagedClaimHatch = {
 	DragonId: string,
 	DragonRarity: string,
+	AssignedSlotId: number?,
 	NewPendingHatches: { [string]: Types.PendingHatch },
 	NewDragons: { [string]: Types.DragonRecord },
+	NewFarmSlots: { [number]: Types.FarmSlot },
 	NewNextEntityId: number,
 	HatchedAt: number,
 }
+
+-- Lowest-numbered farmSlots entry with no dragon in it yet, or nil if every slot is
+-- occupied. Deterministic order (not dict iteration order) so which slot a freshly-hatched
+-- dragon lands in never depends on Luau's unspecified table-iteration order.
+local function firstOpenSlotId(farmSlots: { [number]: Types.FarmSlot }): number?
+	local slotIds = {}
+	for slotId in farmSlots do
+		table.insert(slotIds, slotId)
+	end
+	table.sort(slotIds)
+	for _, slotId in slotIds do
+		if farmSlots[slotId].AssignedDragonUID == nil then
+			return slotId
+		end
+	end
+	return nil
+end
 
 -- Validate: read-only. Only checks the payload shape -- whether the hatch exists/is ready
 -- is checked in Stage against the live profile.
@@ -72,6 +91,28 @@ function ClaimHatchRules.Stage(
 	local newPendingHatches = table.clone(profile.pendingHatches)
 	newPendingHatches[hatchId] = nil
 
+	-- Auto-place the new Baby into the first open Farm Slot (GDD §1: "The hatched dragon is
+	-- auto-assigned to the first open slot"), not just a manual AssignProducer call, so the
+	-- dragon has a physical spot on the plot from the moment it hatches. No production starts
+	-- yet -- ProductionStartedAt stays nil until the dragon actually becomes Adult (see
+	-- FeedDragonRules). If every slot is already occupied, AssignedSlotId stays nil, same as
+	-- the GDD's overflow-to-storage rule (Storage itself isn't built yet, so the dragon simply
+	-- has no world slot for now, rather than blocking the hatch).
+	local assignedSlotId = firstOpenSlotId(profile.farmSlots)
+
+	local newFarmSlots = profile.farmSlots
+	if assignedSlotId then
+		local slot = profile.farmSlots[assignedSlotId]
+		newFarmSlots = table.clone(profile.farmSlots)
+		newFarmSlots[assignedSlotId] = {
+			SlotId = assignedSlotId,
+			AssignedDragonUID = dragonId,
+			ProductionStartedAt = nil,
+			UncollectedEggCount = slot.UncollectedEggCount,
+			IsProductionPaused = slot.IsProductionPaused,
+		}
+	end
+
 	-- Plain `string`, not `Types.Rarity`/`Types.Element`: same luau-lsp widening quirk
 	-- documented in BuyEggRules.luau -- both rolled values are already known-valid members
 	-- of their respective fixed-order lists.
@@ -83,15 +124,17 @@ function ClaimHatchRules.Stage(
 		GrowthStage = "Baby_0",
 		FeedCount = 0,
 		HatchedAt = now,
-		AssignedSlotId = nil,
+		AssignedSlotId = assignedSlotId,
 	}
 
 	return true,
 		{
 			DragonId = dragonId,
 			DragonRarity = dragonRarity,
+			AssignedSlotId = assignedSlotId,
 			NewPendingHatches = newPendingHatches,
 			NewDragons = newDragons,
+			NewFarmSlots = newFarmSlots,
 			NewNextEntityId = profile.meta.nextEntityId + 1,
 			HatchedAt = now,
 		},
@@ -106,11 +149,13 @@ end
 function ClaimHatchRules.Commit(profile: Types.Profile, staged: StagedClaimHatch): { [string]: any }
 	profile.pendingHatches = staged.NewPendingHatches
 	profile.dragons = staged.NewDragons
+	profile.farmSlots = staged.NewFarmSlots
 	profile.meta.nextEntityId = staged.NewNextEntityId
 
 	return {
 		DragonId = staged.DragonId,
 		Rarity = staged.DragonRarity,
+		AssignedSlotId = staged.AssignedSlotId,
 	}
 end
 

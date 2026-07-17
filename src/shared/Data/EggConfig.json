@@ -37,10 +37,10 @@
     }
   },
   "productionVariants": {
-    "Normal": { "goldMultiplier": 1.0 },
-    "Mini": { "goldMultiplier": 0.7 },
-    "Heavy": { "goldMultiplier": 2.0 },
-    "Giant": { "goldMultiplier": 3.0 },
-    "Golden": { "goldMultiplier": 5.0 }
+    "Normal": { "goldMultiplier": 1.0, "baseSellValue": 2 },
+    "Mini": { "goldMultiplier": 0.7, "baseSellValue": 1 },
+    "Heavy": { "goldMultiplier": 2.0, "baseSellValue": 4 },
+    "Giant": { "goldMultiplier": 3.0, "baseSellValue": 6 },
+    "Golden": { "goldMultiplier": 5.0, "baseSellValue": 10 }
   }
 }

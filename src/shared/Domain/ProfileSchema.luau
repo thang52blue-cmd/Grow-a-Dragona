@@ -1,5 +1,6 @@
 local Rarities = require("./Rarities")
 local Elements = require("./Elements")
+local Variants = require("./Variants")
 local Types = require("../Types/Types")
 
 local VALID_GROWTH_STAGES = { Baby_0 = true, Baby_1 = true, Baby_2 = true, Baby_3 = true, Adult = true }
@@ -39,6 +40,17 @@ end
 local ZERO_PRODUCTION_EGG_INVENTORY: Types.ProductionEggInventory =
 	{ Normal = 0, Mini = 0, Heavy = 0, Giant = 0, Golden = 0 }
 
+-- One all-zero { Normal, Mini, Heavy, Giant, Golden } bucket per Rarity (see
+-- adr/ADR-006-production-egg-rarity-inventory.md for why this is now nested by Rarity, not a
+-- single flat bucket).
+local function defaultProductionEggInventoryByRarity(): Types.ProductionEggInventoryByRarity
+	local byRarity: { [string]: Types.ProductionEggInventory } = {}
+	for _, rarity in Rarities.List do
+		byRarity[rarity] = table.clone(ZERO_PRODUCTION_EGG_INVENTORY)
+	end
+	return byRarity :: any
+end
+
 function ProfileSchema.default(startingGold: number, startingFarmSlots: number): Types.Profile
 	return {
 		gold = startingGold,
@@ -46,7 +58,7 @@ function ProfileSchema.default(startingGold: number, startingFarmSlots: number):
 		pendingHatches = {},
 		dragons = {},
 		farmSlots = defaultFarmSlots(startingFarmSlots),
-		productionEggInventory = table.clone(ZERO_PRODUCTION_EGG_INVENTORY),
+		productionEggInventory = defaultProductionEggInventoryByRarity(),
 		lastPosition = nil,
 		meta = {
 			schemaVersion = ProfileSchema.CURRENT_SCHEMA_VERSION,
@@ -55,6 +67,7 @@ function ProfileSchema.default(startingGold: number, startingFarmSlots: number):
 				updatedAt = 0,
 			},
 			nextEntityId = 1,
+			starterHatchGranted = false,
 		},
 	}
 end
@@ -187,27 +200,38 @@ function ProfileSchema.validate(data: unknown, startingFarmSlots: number?): (boo
 		end
 	end
 
+	-- productionEggInventory changed shape from a flat { Normal, Mini, ... } bucket to one such
+	-- bucket per Rarity (see adr/ADR-006-production-egg-rarity-inventory.md). No migration for
+	-- the old flat shape -- pre-ADR-006 saves are all dev/test data (project is pre-launch, per
+	-- direct user request not worth preserving), so a save in the old shape simply reads as
+	-- empty here (its top-level keys are Variant names, which this loop never looks for) rather
+	-- than being specially detected and carried over.
 	local productionEggInventoryRaw = rawProfile.productionEggInventory
-	local productionEggInventory: Types.ProductionEggInventory
-	if productionEggInventoryRaw == nil then
-		productionEggInventory = table.clone(ZERO_PRODUCTION_EGG_INVENTORY)
-	else
+	local productionEggInventory: Types.ProductionEggInventoryByRarity = defaultProductionEggInventoryByRarity()
+	if productionEggInventoryRaw ~= nil then
 		if type(productionEggInventoryRaw) ~= "table" then
 			return false, nil, "invalid productionEggInventory"
 		end
 		local raw = productionEggInventoryRaw :: { [string]: any }
-		local built: { [string]: number } = {}
-		for _, variant in { "Normal", "Mini", "Heavy", "Giant", "Golden" } do
-			local quantity = raw[variant]
-			if quantity == nil then
-				quantity = 0
+		for _, rarity in Rarities.List do
+			local bucketRaw = raw[rarity]
+			if bucketRaw ~= nil then
+				if type(bucketRaw) ~= "table" then
+					return false, nil, "invalid productionEggInventory." .. rarity
+				end
+				local bucket = bucketRaw :: { [string]: any }
+				for _, variant in Variants.List do
+					local quantity = bucket[variant]
+					if quantity == nil then
+						quantity = 0
+					end
+					if type(quantity) ~= "number" or quantity < 0 or quantity % 1 ~= 0 then
+						return false, nil, "invalid productionEggInventory." .. rarity .. "." .. variant
+					end
+					(productionEggInventory :: any)[rarity][variant] = quantity
+				end
 			end
-			if type(quantity) ~= "number" or quantity < 0 or quantity % 1 ~= 0 then
-				return false, nil, "invalid productionEggInventory." .. variant
-			end
-			built[variant] = quantity
 		end
-		productionEggInventory = built :: any
 	end
 
 	local lastPosition: Types.Position? = nil
@@ -240,6 +264,17 @@ function ProfileSchema.validate(data: unknown, startingFarmSlots: number?): (boo
 		nextEntityId = meta.nextEntityId
 	end
 
+	-- starterHatchGranted is additive (the free first-join Hatching Egg, see
+	-- adr/ADR-005-farm-plot-and-starter-hatch.md). Its default *flips* depending on why it's
+	-- missing: `ProfileSchema.default()` (a genuinely brand-new profile) explicitly sets it to
+	-- `false` so the grant fires once; a profile loaded here with the field simply absent
+	-- predates the feature entirely and already has real progress, so it defaults to `true`
+	-- (already granted) to avoid retroactively surprising an existing save with a bonus egg.
+	local starterHatchGranted = true
+	if type(meta.starterHatchGranted) == "boolean" then
+		starterHatchGranted = meta.starterHatchGranted
+	end
+
 	return true,
 		{
 			gold = gold,
@@ -256,6 +291,7 @@ function ProfileSchema.validate(data: unknown, startingFarmSlots: number?): (boo
 					updatedAt = sessionUpdatedAt,
 				},
 				nextEntityId = nextEntityId,
+				starterHatchGranted = starterHatchGranted,
 			},
 		},
 		nil

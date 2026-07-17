@@ -1,18 +1,24 @@
 -- Pure Validate/Stage/Commit rules for CollectNestTransaction (backlog item 6). No engine
 -- globals or IO (AGENTS.md hard rule); see adr/ADR-004-farm-slot-and-nest-schema.md for the
--- schema this relies on. The client sends `SlotId` only (docs/prd/core-game-loop.md) -- the
--- number of Eggs produced is always computed server-side via ProductionRules from timestamps.
+-- schema this relies on and adr/ADR-006-production-egg-rarity-inventory.md for the variant-roll
+-- addition. The client sends `SlotId` only (docs/prd/core-game-loop.md) -- the number of Eggs
+-- produced is always computed server-side via ProductionRules from timestamps, and which
+-- variant each one becomes is always rolled server-side too (`variantRollValues`, one per
+-- possible egg -- see ClaimHatchRules' identical externally-supplied-rollValue precedent).
 local Types = require("../Types/Types")
 local TransactionCode = require("./TransactionCode")
 local ProductionRules = require("./ProductionRules")
+local WeightedRoll = require("./WeightedRoll")
+local Variants = require("./Variants")
 
 local CollectNestRules = {}
 
 export type StagedCollectNest = {
 	SlotId: number,
 	EggsCollected: number,
+	VariantCounts: { [string]: number },
 	NewFarmSlots: { [number]: Types.FarmSlot },
-	NewProductionEggInventory: Types.ProductionEggInventory,
+	NewProductionEggInventory: Types.ProductionEggInventoryByRarity,
 }
 
 -- Validate: read-only, payload shape only. Slot existence/emptiness is checked in Stage against
@@ -33,14 +39,19 @@ end
 -- Stage: computes the full write set as new values, never mutating `profile`. First brings the
 -- slot current via ProductionRules.Advance (a slot can accumulate multiple completed cycles
 -- between transactions -- collection must never miss eggs that finished producing since the last
--- write), then moves every uncollected Egg into ProductionEggInventory in one shot. For the first
--- prototype all collected Eggs are the `Normal` variant (docs/prd/core-game-loop.md explicitly
--- defers variant rolling) -- see adr/ADR-004-farm-slot-and-nest-schema.md.
+-- write), then rolls each newly-produced egg's variant against the *laying* dragon's own Rarity
+-- odds (GDD §2, `productionConfig.variantOddsByRarity`) and moves them into
+-- ProductionEggInventory[dragonRarity] in one shot. `variantRollValues` must have at least as
+-- many entries as could possibly be produced in one Advance (bounded by `nestCapacity`, since
+-- ProductionRules.Advance never creates more eggs than the Nest's capacity) -- the caller
+-- (CollectNestTransaction) always supplies `nestCapacity` fresh math.random() values so it never
+-- needs to know `eggsCollected` in advance.
 function CollectNestRules.Stage(
 	productionConfig: Types.ProductionConfig,
 	profile: Types.Profile,
 	payload: { [string]: any },
-	now: number
+	now: number,
+	variantRollValues: { number }
 ): (boolean, StagedCollectNest?, number?)
 	local slotId = payload.SlotId :: number
 
@@ -54,6 +65,11 @@ function CollectNestRules.Stage(
 		return false, nil, TransactionCode.NestEmpty
 	end
 
+	local dragon = profile.dragons[advanced.AssignedDragonUID :: string]
+	if not dragon then
+		return false, nil, TransactionCode.DragonNotFound
+	end
+
 	local eggsCollected = advanced.UncollectedEggCount
 
 	local newFarmSlots = table.clone(profile.farmSlots)
@@ -65,13 +81,28 @@ function CollectNestRules.Stage(
 		IsProductionPaused = false,
 	}
 
+	-- `dragon.Rarity` is a known-valid Rarity already stored on the profile -- cast through
+	-- `:: any` for the same luau-lsp union-widening quirk documented in Rarities.luau.
+	local odds = productionConfig.variantOddsByRarity[dragon.Rarity :: any]
+	local variantCounts: { [string]: number } = { Normal = 0, Mini = 0, Heavy = 0, Giant = 0, Golden = 0 }
+	for i = 1, eggsCollected do
+		local variant = WeightedRoll.pick(Variants.List, odds :: any, variantRollValues[i])
+		variantCounts[variant] += 1
+	end
+
 	local newProductionEggInventory = table.clone(profile.productionEggInventory)
-	newProductionEggInventory.Normal += eggsCollected
+	local existingRarityBucket = newProductionEggInventory[dragon.Rarity :: any]
+	local newRarityBucket = table.clone(existingRarityBucket)
+	for _, variant in Variants.List do
+		newRarityBucket[variant] += variantCounts[variant]
+	end
+	(newProductionEggInventory :: any)[dragon.Rarity] = newRarityBucket
 
 	return true,
 		{
 			SlotId = slotId,
 			EggsCollected = eggsCollected,
+			VariantCounts = variantCounts,
 			NewFarmSlots = newFarmSlots,
 			NewProductionEggInventory = newProductionEggInventory,
 		},
@@ -89,7 +120,7 @@ function CollectNestRules.Commit(profile: Types.Profile, staged: StagedCollectNe
 	return {
 		SlotId = staged.SlotId,
 		EggsCollected = staged.EggsCollected,
-		Variant = "Normal",
+		VariantCounts = staged.VariantCounts,
 	}
 end
 

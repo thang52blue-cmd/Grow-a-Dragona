@@ -18,9 +18,12 @@ Never hardcode these values in logic; require the file instead.
   `adr/ADR-002-hatch-state-and-dragon-schema.md`'s "hatching made instant" addendum.
 - `DragonConfig.json` — `elements` (food category + synergy type per element) and `rarities`
   (production multiplier per rarity) are transcribed from GDD §3.1-§3.2. Real design values.
-  **Added 2026-07-16** for Feed Dragon (backlog item 5): `elementOdds`, an equal-weight (20% each)
-  placeholder used to roll a hatched dragon's `Element` — no real per-element rarity has been
-  designed yet; see `adr/ADR-003-feed-dragon-schema.md`.
+  **Added 2026-07-16** for Feed Dragon (backlog item 5): `elementOdds`, originally an equal-weight
+  (20% each) placeholder used to roll a hatched dragon's `Element` — no real per-element rarity had
+  been designed yet; see `adr/ADR-003-feed-dragon-schema.md`. **Updated 2026-07-17:** promoted to a
+  real design value (Fire/Water/Earth 25% each, Light/Dark 12.5% each) per
+  `docs/GROW_A_DRAGONA_IMPLEMENTATION_GDD.md` §2 ("Fire, Water, and Earth are common enough to show
+  up constantly; Light and Dark are deliberately half as likely") — no longer a placeholder.
 - `FoodConfig.json` — the food-item catalog per element is transcribed from GDD §3.1's literal
   examples (e.g. Fire → chili peppers, hot sauce, fire berries). The previously-flagged "no
   growth-rate number" gap is resolved by `docs/prd/core-game-loop.md`: growth is not rate-based at
@@ -34,13 +37,17 @@ Never hardcode these values in logic; require the file instead.
 - `FoodShopConfig.json` — **Added 2026-07-17** for the Food Shop (a new feature, not previously
   planned in `docs/prd/core-game-loop.md`, which only called for "a temporary Food test source").
   Flat `{ itemId: goldPrice }` map covering all 15 items across `FoodConfig.json`'s 5 elements.
-  Every price is a flat `10` gold placeholder — no GDD or PRD source specifies Food prices at all
-  (confirmed by re-reading the GDD's Food section); adjust once real balancing lands. Kept as a
-  separate file rather than adding a price field onto `FoodConfig.json`'s per-element item lists,
-  since `FeedDragonRules` already depends on that file's existing `{ [Element]: {string} }` shape
-  and changing it would ripple into unrelated Feed logic.
+  Originally a flat `10` gold placeholder — no GDD or PRD source specified Food prices at the time.
+  **Updated 2026-07-17:** every item is now `1` gold, per
+  `docs/GROW_A_DRAGONA_IMPLEMENTATION_GDD.md` §11 ("1 gold per portion, all five elements priced the
+  same") — no longer a placeholder.
 - `ProductionConfig.json` — **Added 2026-07-17** for Farm Slot / Production (backlog item 6):
   `productionIntervalSeconds: 180` and `nestCapacity: 12` are transcribed verbatim from
-  `docs/prd/core-game-loop.md`'s stated prototype numbers. `startingFarmSlots: 3` is an engineering
-  placeholder (the PRD says "add unlocked production slots" but never specifies how many) — see
-  `adr/ADR-004-farm-slot-and-nest-schema.md`.
+  `docs/prd/core-game-loop.md`'s stated prototype numbers, and independently confirmed by
+  `docs/GROW_A_DRAGONA_IMPLEMENTATION_GDD.md` §5 (a Normal egg roughly every 3 minutes; nest caps at
+  12). `startingFarmSlots` was originally an engineering placeholder of `3` (the PRD says "add
+  unlocked production slots" but never specifies how many) — see
+  `adr/ADR-004-farm-slot-and-nest-schema.md`. **Updated 2026-07-17:** changed to `2`, the real
+  starter-plot size per the Implementation GDD §1/§6 ("Starter plot: 2 slots"); the same section also
+  defines the full paid expansion ladder (4/6/8/10/12 slots at 500/2,000/8,000/25,000/80,000 gold)
+  that this file does not yet encode — tracked as a new backlog item (Plot Expansion transaction).

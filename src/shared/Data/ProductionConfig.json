@@ -1,5 +1,12 @@
 {
   "productionIntervalSeconds": 180,
   "nestCapacity": 12,
-  "startingFarmSlots": 3
+  "startingFarmSlots": 2,
+  "variantOddsByRarity": {
+    "Common": { "Normal": 0.60, "Mini": 0.25, "Heavy": 0.10, "Giant": 0.04, "Golden": 0.01 },
+    "Rare": { "Normal": 0.50, "Mini": 0.20, "Heavy": 0.18, "Giant": 0.08, "Golden": 0.02 },
+    "Epic": { "Normal": 0.40, "Mini": 0.15, "Heavy": 0.25, "Giant": 0.15, "Golden": 0.05 },
+    "Legendary": { "Normal": 0.25, "Mini": 0.10, "Heavy": 0.30, "Giant": 0.25, "Golden": 0.10 },
+    "Mythic": { "Normal": 0.10, "Mini": 0.05, "Heavy": 0.30, "Giant": 0.35, "Golden": 0.20 }
+  }
 }

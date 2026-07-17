@@ -14,6 +14,9 @@ local CurrencyService = require(script.Services.CurrencyService)
 local InventoryService = require(script.Services.InventoryService)
 local HatchSpawner = require(script.Services.HatchSpawner)
 local DragonSpawner = require(script.Services.DragonSpawner)
+local FarmPlotSpawner = require(script.Services.FarmPlotSpawner)
+local NestSpawner = require(script.Services.NestSpawner)
+local MarketStallSpawner = require(script.Services.MarketStallSpawner)
 local RemotesSetup = require(script.Remotes.RemotesSetup)
 local PlayerRuntimeStore = require(script.Runtime.PlayerRuntimeStore)
 local TransactionService = require(script.Transactions.Core.TransactionService)
@@ -24,11 +27,16 @@ local ClaimHatchTransaction = require(script.Transactions.Hatching.ClaimHatchTra
 local FeedDragonTransaction = require(script.Transactions.Dragon.FeedDragonTransaction)
 local AssignProducerTransaction = require(script.Transactions.Production.AssignProducerTransaction)
 local CollectNestTransaction = require(script.Transactions.Production.CollectNestTransaction)
+local SellProductionEggTransaction = require(script.Transactions.Economy.SellProductionEggTransaction)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local TransactionType = require(Shared.Domain.TransactionType)
 local Types = require(Shared.Types.Types)
 local FoodConfig = require(Shared.Data.FoodConfig) :: Types.FoodConfig
+local EggConfig = require(Shared.Data.EggConfig) :: Types.EggConfig
+local ProductionConfig = require(Shared.Data.ProductionConfig) :: Types.ProductionConfig
+local StarterHatchRules = require(Shared.Domain.StarterHatchRules)
+local ProductionRules = require(Shared.Domain.ProductionRules)
 
 local TEST_GOLD_AMOUNT = 10
 local TEST_GOLD_BIG_AMOUNT = 10000
@@ -50,6 +58,8 @@ TransactionService.RegisterHandler(TransactionType.AssignProducer, AssignProduce
 TransactionService.SetTypeRateLimit(TransactionType.AssignProducer, 10, 2)
 TransactionService.RegisterHandler(TransactionType.CollectNest, CollectNestTransaction)
 TransactionService.SetTypeRateLimit(TransactionType.CollectNest, 10, 2)
+TransactionService.RegisterHandler(TransactionType.SellProductionEgg, SellProductionEggTransaction)
+TransactionService.SetTypeRateLimit(TransactionType.SellProductionEgg, 10, 2)
 
 local remotesFolder = RemotesSetup.Init()
 
@@ -137,10 +147,44 @@ Players.PlayerAdded:Connect(function(player: Player)
 	if ok then
 		PlayerRuntimeStore.Create(player)
 
+		if profile then
+			local slotIds = {}
+			for slotId in profile.farmSlots do
+				table.insert(slotIds, slotId)
+			end
+			table.sort(slotIds)
+			FarmPlotSpawner.EnsurePlot(player, slotIds)
+
+			-- Free first-join Hatching Egg (GDD Section 1) -- granted at most once per
+			-- profile (StarterHatchRules.ShouldGrant), directly here rather than through
+			-- TransactionService: there's no client payload to validate/dedupe, this is a
+			-- one-shot server-initiated grant that can only ever run once per profile.
+			-- Recorded into pendingHatches before the character loads, so the normal
+			-- HatchSpawner.RespawnAllPending call below picks it up and spawns its world
+			-- egg the same way any other pending hatch would reappear after rejoin.
+			if StarterHatchRules.ShouldGrant(profile) then
+				local worldPosition = FarmPlotSpawner.StarterEggPosition(player)
+				local position: Types.Position = { X = worldPosition.X, Y = worldPosition.Y, Z = worldPosition.Z }
+				local staged = StarterHatchRules.Stage(EggConfig, profile, os.time(), position, math.random())
+				StarterHatchRules.Commit(profile, staged)
+			end
+		end
+
 		player.CharacterAdded:Once(function()
 			if profile then
 				HatchSpawner.RespawnAllPending(player, profile)
 				DragonSpawner.RespawnAll(player, profile)
+				MarketStallSpawner.EnsureStall(player)
+				for slotId, slot in profile.farmSlots do
+					if slot.ProductionStartedAt then
+						NestSpawner.EnsureNest(
+							player,
+							slotId,
+							FarmPlotSpawner.SlotPosition(player, slotId),
+							slot.UncollectedEggCount
+						)
+					end
+				end
 			end
 		end)
 
@@ -166,6 +210,9 @@ Players.PlayerRemoving:Connect(function(player: Player)
 	saveCharacterPosition(player)
 	HatchSpawner.DespawnAll(player)
 	DragonSpawner.DespawnAll(player)
+	NestSpawner.DespawnAll(player)
+	MarketStallSpawner.Despawn(player)
+	FarmPlotSpawner.Despawn(player)
 	local ok, err = DataService.Release(player.UserId)
 	if not ok then
 		warn(`[GrowADragona] Save failed for user {player.UserId} on leave: {err}`)
@@ -320,12 +367,60 @@ transactionRemote.OnServerInvoke = function(player: Player, requestId: unknown, 
 			local dragon = profile and profile.dragons[result.Data.DragonUID]
 			if dragon then
 				DragonSpawner.Spawn(player, result.Data.DragonUID, dragon)
+				-- The 4th Feed also auto-starts production on the dragon's already-assigned
+				-- Farm Slot (ADR-005) -- the Nest materializes the same moment (GDD §5).
+				if dragon.AssignedSlotId then
+					local slotPosition = FarmPlotSpawner.SlotPosition(player, dragon.AssignedSlotId)
+					NestSpawner.EnsureNest(player, dragon.AssignedSlotId, slotPosition, 0)
+				end
 			end
 		else
 			DragonSpawner.UpdateFeedCount(player, result.Data.DragonUID, result.Data.FeedCount)
 		end
+	elseif result.Success and typeId == TransactionType.AssignProducer and result.Data then
+		-- Manual re-assignment (e.g. a future Storage/swap flow) moves a dragon's world
+		-- model to its newly-assigned slot the same way a fresh hatch does.
+		DragonSpawner.Despawn(player, result.Data.DragonUID)
+		local profile = DataService.Get(player.UserId)
+		local dragon = profile and profile.dragons[result.Data.DragonUID]
+		if dragon then
+			DragonSpawner.Spawn(player, result.Data.DragonUID, dragon)
+		end
+		local slotPosition = FarmPlotSpawner.SlotPosition(player, result.Data.SlotId)
+		NestSpawner.EnsureNest(player, result.Data.SlotId, slotPosition, 0)
+	elseif result.Success and typeId == TransactionType.CollectNest and result.Data then
+		local slotPosition = FarmPlotSpawner.SlotPosition(player, result.Data.SlotId)
+		NestSpawner.EnsureNest(player, result.Data.SlotId, slotPosition, 0)
 	end
 
 	pushSnapshot(player, if result.Success then nil else `transaction failed: code {result.Code}`)
 	return result
 end
+
+-- Periodic display-only refresh so a Nest's egg pile visibly grows between Collects instead of
+-- only updating right after a transaction (GDD §5: "Visual states as eggs accumulate"). Reuses
+-- the exact same pure ProductionRules.Advance already used by CollectNestTransaction -- this only
+-- ever updates FarmSlot bookkeeping (UncollectedEggCount/ProductionStartedAt/IsProductionPaused),
+-- the same fields CollectNest itself would compute at collect time, and never touches Gold or
+-- productionEggInventory, so it grants nothing and can't be exploited for extra value.
+task.spawn(function()
+	while true do
+		task.wait(15)
+		for _, player in Players:GetPlayers() do
+			local profile = DataService.Get(player.UserId)
+			if profile then
+				local now = os.time()
+				for slotId, slot in profile.farmSlots do
+					if slot.ProductionStartedAt then
+						local advanced = ProductionRules.Advance(slot, now, ProductionConfig)
+						if advanced.UncollectedEggCount ~= slot.UncollectedEggCount then
+							profile.farmSlots[slotId] = advanced
+							local slotPosition = FarmPlotSpawner.SlotPosition(player, slotId)
+							NestSpawner.EnsureNest(player, slotId, slotPosition, advanced.UncollectedEggCount)
+						end
+					end
+				end
+			end
+		end
+	end
+end)

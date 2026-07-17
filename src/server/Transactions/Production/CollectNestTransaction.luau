@@ -16,7 +16,16 @@ function CollectNestTransaction.Validate(_context, payload): (boolean, number?)
 end
 
 function CollectNestTransaction.Stage(context, payload): (boolean, number?)
-	local ok, staged, code = CollectNestRules.Stage(ProductionConfig, context.Profile, payload, context.TransactionTime)
+	-- Never more eggs than `nestCapacity` can possibly be produced in one Advance (see
+	-- ProductionRules.Advance's capacity cap), so this is always enough roll values regardless
+	-- of how many eggs actually get collected.
+	local variantRollValues = {}
+	for _ = 1, ProductionConfig.nestCapacity do
+		table.insert(variantRollValues, math.random())
+	end
+
+	local ok, staged, code =
+		CollectNestRules.Stage(ProductionConfig, context.Profile, payload, context.TransactionTime, variantRollValues)
 	if not ok then
 		return false, code
 	end

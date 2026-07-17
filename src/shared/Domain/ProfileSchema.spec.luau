@@ -13,6 +13,36 @@ local passed = Check.runAll({
 		end,
 	},
 	{
+		name = "default profile starts with starterHatchGranted = false (a brand-new profile hasn't gotten one yet)",
+		run = function()
+			Check.isFalse(ProfileSchema.default(0, 2).meta.starterHatchGranted)
+		end,
+	},
+	{
+		name = "validate defaults a missing starterHatchGranted to true (a pre-existing save predates the feature)",
+		run = function()
+			local ok, profile = ProfileSchema.validate({
+				gold = 0,
+				inventory = {},
+				meta = { schemaVersion = 1, session = {} },
+			})
+			Check.isTrue(ok)
+			Check.isTrue(profile.meta.starterHatchGranted)
+		end,
+	},
+	{
+		name = "validate preserves an explicit starterHatchGranted = false",
+		run = function()
+			local ok, profile = ProfileSchema.validate({
+				gold = 0,
+				inventory = {},
+				meta = { schemaVersion = 1, session = {}, starterHatchGranted = false },
+			})
+			Check.isTrue(ok)
+			Check.isFalse(profile.meta.starterHatchGranted)
+		end,
+	},
+	{
 		name = "default profile pre-populates the given number of empty farm slots and zero production eggs",
 		run = function()
 			local profile = ProfileSchema.default(50, 3)
@@ -22,8 +52,9 @@ local passed = Check.runAll({
 			Check.equal(profile.farmSlots[1].IsProductionPaused, false)
 			Check.equal(profile.farmSlots[3].SlotId, 3)
 			Check.equal(profile.farmSlots[4], nil)
-			Check.equal(profile.productionEggInventory.Normal, 0)
-			Check.equal(profile.productionEggInventory.Golden, 0)
+			Check.equal(profile.productionEggInventory.Common.Normal, 0)
+			Check.equal(profile.productionEggInventory.Common.Golden, 0)
+			Check.equal(profile.productionEggInventory.Mythic.Golden, 0)
 		end,
 	},
 	{
@@ -184,7 +215,7 @@ local passed = Check.runAll({
 			Check.equal(profile.farmSlots[1].SlotId, 1)
 			Check.equal(profile.farmSlots[3].SlotId, 3)
 			Check.equal(profile.farmSlots[4], nil)
-			Check.equal(profile.productionEggInventory.Normal, 0)
+			Check.equal(profile.productionEggInventory.Common.Normal, 0)
 		end,
 	},
 	{
@@ -203,18 +234,38 @@ local passed = Check.runAll({
 						IsProductionPaused = false,
 					},
 				},
-				productionEggInventory = { Normal = 7, Mini = 0, Heavy = 0, Giant = 0, Golden = 0 },
+				productionEggInventory = {
+					Common = { Normal = 7, Mini = 0, Heavy = 0, Giant = 0, Golden = 0 },
+					Mythic = { Normal = 0, Mini = 0, Heavy = 0, Giant = 0, Golden = 1 },
+				},
 				meta = { schemaVersion = 1, session = {} },
 			})
 			Check.isTrue(ok)
 			Check.equal(profile.dragons["1"].AssignedSlotId, 1)
 			Check.equal(profile.farmSlots[1].AssignedDragonUID, "1")
 			Check.equal(profile.farmSlots[1].UncollectedEggCount, 4)
-			Check.equal(profile.productionEggInventory.Normal, 7)
+			Check.equal(profile.productionEggInventory.Common.Normal, 7)
+			Check.equal(profile.productionEggInventory.Mythic.Golden, 1)
+			-- Rarities not mentioned in the raw save still default to all-zero, not nil.
+			Check.equal(profile.productionEggInventory.Rare.Normal, 0)
 		end,
 	},
 	{
-		name = "validate rejects a malformed farmSlots or productionEggInventory entry",
+		name = "validate silently drops a legacy flat-shape productionEggInventory (pre-ADR-006 dev save) rather than erroring",
+		run = function()
+			local ok, profile = ProfileSchema.validate({
+				gold = 0,
+				inventory = {},
+				productionEggInventory = { Normal = 5, Mini = 2, Heavy = 0, Giant = 0, Golden = 1 },
+				meta = { schemaVersion = 1, session = {} },
+			})
+			Check.isTrue(ok)
+			Check.equal(profile.productionEggInventory.Common.Normal, 0)
+			Check.equal(profile.productionEggInventory.Rare.Normal, 0)
+		end,
+	},
+	{
+		name = "validate rejects a malformed farmSlots or nested productionEggInventory entry",
 		run = function()
 			local badSlot = ProfileSchema.validate({
 				gold = 0,
@@ -224,13 +275,13 @@ local passed = Check.runAll({
 			})
 			Check.isFalse(badSlot)
 
-			local badInventory = ProfileSchema.validate({
+			local badNestedInventory = ProfileSchema.validate({
 				gold = 0,
 				inventory = {},
-				productionEggInventory = { Normal = "not a number" },
+				productionEggInventory = { Common = { Normal = "not a number" } },
 				meta = { schemaVersion = 1, session = {} },
 			})
-			Check.isFalse(badInventory)
+			Check.isFalse(badNestedInventory)
 		end,
 	},
 	{

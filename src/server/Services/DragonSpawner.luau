@@ -1,18 +1,20 @@
--- Engine-glue for owned-dragon world presence in the shared "Nursery" area (Phase B, docs/prd/
--- core-game-loop.md, extended 2026-07-17 per direct user request to also show the Adult model in
--- place after transformation, instead of despawning). Spawns a clone of
--- ReplicatedStorage.DragonModels.Baby or .Adult (picked from dragon.GrowthStage) for every owned
--- dragon not yet assigned to a Farm Slot; a Baby gets a Feed ProximityPrompt whose Triggered
--- handler is wired client-side (src/client/Dragon/FeedPromptController.luau) to call
--- FeedDragonTransaction with only the DragonUID (AGENTS.md: clients request actions, server owns
--- state); an Adult gets no prompt yet (Farm Slot assignment's own world-presence pass, backlog
--- item 6, isn't built). This is Runtime-only decoration -- the persistent GrowthStage/FeedCount
--- lives on the profile; nothing here is saved, same pattern as HatchSpawner.luau for hatching eggs.
+-- Engine-glue for owned-dragon world presence. Spawns a clone of ReplicatedStorage.DragonModels
+-- .Baby or .Adult (picked from dragon.GrowthStage) for every owned dragon: one already assigned
+-- to a Farm Slot (every dragon gets one automatically at hatch now, see ClaimHatchRules) stands
+-- on its FarmPlotSpawner tile; one with no slot (every slot already occupied at hatch time, the
+-- closest MVP equivalent of "overflow to storage") falls back to the shared placeholder
+-- "Nursery" holding area. A Baby gets a Feed ProximityPrompt whose Triggered handler is wired
+-- client-side (src/client/Dragon/FeedPromptController.luau) to call FeedDragonTransaction with
+-- only the DragonUID (AGENTS.md: clients request actions, server owns state); an Adult gets no
+-- prompt (nothing to feed). This is Runtime-only decoration -- the persistent GrowthStage/
+-- FeedCount/AssignedSlotId lives on the profile; nothing here is saved, same pattern as
+-- HatchSpawner.luau for hatching eggs. See adr/ADR-005-farm-plot-and-starter-hatch.md.
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Types = require(ReplicatedStorage:WaitForChild("Shared").Types.Types)
+local FarmPlotSpawner = require(script.Parent.FarmPlotSpawner)
 
 local DRAGON_MODELS_FOLDER_NAME = "DragonModels"
 local NURSERY_FOLDER_NAME = "Nursery"
@@ -20,8 +22,10 @@ local BABY_DRAGON_TAG = "BabyDragon"
 local ADULT_DRAGON_TAG = "AdultDragon"
 
 -- Placeholder MVP location, chosen clear of Workspace.SpawnLocation (0, 0.5, -79) and within
--- Workspace.Baseplate's bounds (2048x16x2048 centered at origin, top surface at Y=0).
-local NURSERY_ORIGIN = Vector3.new(60, 3, -40)
+-- Workspace.Baseplate's bounds (2048x16x2048 centered at origin, top surface at Y=0). Y=0
+-- here is the ground surface a spawned model's bounding box gets rested on (see
+-- placeModelOnGround), not the model's own position.
+local NURSERY_ORIGIN = Vector3.new(60, 0, -40)
 local LANE_SPACING = Vector3.new(25, 0, 0)
 local SLOT_SPACING = Vector3.new(6, 0, 0)
 local ROW_SPACING = Vector3.new(0, 0, 6)
@@ -80,6 +84,18 @@ local function statusLabelText(dragon: Types.DragonRecord): string
 	return `{dragon.Rarity} {dragon.Element} - {dragon.GrowthStage} (Fed {dragon.FeedCount}/4)`
 end
 
+-- Rests `model`'s true bounding-box bottom exactly on `groundPosition`.Y (its X/Z), instead
+-- of assuming a fixed model height/pivot offset -- works regardless of where each model's
+-- own pivot sits relative to its geometry, so Baby and Adult models (different sizes/rigs)
+-- both land on the ground rather than floating or sinking in.
+local function placeModelOnGround(model: Model, groundPosition: Vector3)
+	model:PivotTo(CFrame.new(groundPosition))
+	local boundingCFrame, size = model:GetBoundingBox()
+	local bottomY = boundingCFrame.Position.Y - size.Y / 2
+	local pivot = model:GetPivot()
+	model:PivotTo(pivot + Vector3.new(0, groundPosition.Y - bottomY, 0))
+end
+
 local function addStatusBillboard(clone: Model, text: string): TextLabel
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "FeedStatus"
@@ -130,8 +146,10 @@ function DragonSpawner.Spawn(player: Player, dragonUID: string, dragon: Types.Dr
 		end
 	end
 
-	local slotIndex = #folder:GetChildren()
-	clone:PivotTo(CFrame.new(slotPosition(player, slotIndex)))
+	local position = if dragon.AssignedSlotId
+		then FarmPlotSpawner.SlotPosition(player, dragon.AssignedSlotId)
+		else slotPosition(player, #folder:GetChildren())
+	placeModelOnGround(clone, position)
 
 	clone:SetAttribute("DragonUID", dragonUID)
 	clone:SetAttribute("Rarity", dragon.Rarity)
@@ -196,16 +214,12 @@ function DragonSpawner.Despawn(player: Player, dragonUID: string)
 	end
 end
 
--- Recreates a Dragon model for every owned dragon not yet assigned to a Farm Slot (Baby or Adult
--- alike) -- called once the player's character has loaded, so dragons fed/grown in a previous
--- session reappear in the Nursery. A dragon with AssignedSlotId set gets no Nursery model -- its
--- world presence belongs at its Farm Slot, a still-unbuilt follow-up (see
--- adr/ADR-004-farm-slot-and-nest-schema.md's Consequences).
+-- Recreates a Dragon model for every owned dragon (Baby or Adult, assigned to a Farm Slot or
+-- not) -- called once the player's character has loaded, so dragons fed/grown/placed in a
+-- previous session reappear exactly where they were.
 function DragonSpawner.RespawnAll(player: Player, profile: Types.Profile)
 	for dragonUID, dragon in profile.dragons do
-		if dragon.AssignedSlotId == nil then
-			DragonSpawner.Spawn(player, dragonUID, dragon)
-		end
+		DragonSpawner.Spawn(player, dragonUID, dragon)
 	end
 end
 

@@ -197,22 +197,84 @@ smoke-tested):
   same pattern as `AddTestFood`/`AddTestDragon`. Live-verified: dragon count → 0, Nursery folder → 0
   children, assigning a deleted dragon UID correctly returns `DragonNotFound`.
 
+- **2026-07-17 — Ingested `docs/GROW_A_DRAGONA_IMPLEMENTATION_GDD.md`** (user-supplied, a more
+  detailed successor to `Doc/Grow_a_Dragona_GDD.txt`; copied verbatim into the repo so future
+  sessions can cite it directly). This promoted three previously-flagged engineering placeholders to
+  real, GDD-sourced design values — pure data changes, no schema/transaction-contract change, so no
+  new ADR:
+  - `DragonConfig.json` `elementOdds`: equal 20%/element → Fire/Water/Earth 25% each, Light/Dark
+    12.5% each (GDD §2).
+  - `ProductionConfig.json` `startingFarmSlots`: `3` (unsourced placeholder) → `2` (GDD §1/§6's
+    stated starter-plot size). Existing saved profiles are unaffected — `ProfileSchema.default`
+    only reads this value when creating a brand-new profile, and `ProfileSchema.validate` only
+    falls back to it for a profile whose `farmSlots` field is entirely missing, not to shrink an
+    already-larger stored value.
+  - `FoodShopConfig.json`: flat `10` gold/item placeholder → flat `1` gold/item (GDD §11).
+  Also surfaced net-new scope not previously tracked: the GDD's full paid Plot Expansion ladder
+  (2→4→6→8→10→12 slots, 500/2,000/8,000/25,000/80,000 gold — `backlog.md` item 13, not started),
+  concrete Sell Production Egg base values and the production-egg variant-odds-by-dragon-rarity
+  table (both feed into item 7, not started), and the full 2/3/4/6/12-dragon synergy curve (item 8,
+  not started, MVP scope still only requires the 2-dragon tier). No code/tests changed by this pass
+  — `ci/run-tests.sh fast` should still read 18 specs; re-run after this entry to confirm.
+
+- **Added 2026-07-17 (backlog item 14) — Farm Plot world-presence, auto Farm-Slot placement, and
+  free starter Hatching Egg:** see `adr/ADR-005-farm-plot-and-starter-hatch.md` for the full design.
+  `ci/run-tests.sh fast` → real `PASSED`, 19 specs (up from 18):
+  - `ClaimHatchRules.luau` — a freshly-hatched dragon now auto-assigns to the lowest-numbered open
+    `farmSlots` entry (or stays unassigned if every slot is full); 3 new spec cases prove this,
+    including the already-occupied-slot and all-slots-full paths.
+  - `FeedDragonRules.luau` — now takes a `now: number` parameter and, on the 4th Feed, auto-starts
+    production (`ProductionStartedAt = now`) on the dragon's already-assigned slot; 3 new spec cases
+    prove this fires only on `BecameAdult` with an assigned slot, and never touches `farmSlots`
+    otherwise.
+  - New `StarterHatchRules.luau` (+ 4-case spec) — `ShouldGrant`/`Stage`/`Commit` for the one-time
+    free Hatching Egg, rolled from `EggConfig.hatchingTiers.Common.odds` (real odds, not scripted).
+  - `ProfileSchema.luau` — new `meta.starterHatchGranted` with an asymmetric default (`false` from
+    `.default()`, `true` when missing from `.validate()`) so pre-existing saves aren't retroactively
+    granted a surprise egg; 3 new spec cases.
+  `ci/compile-check.sh` → `COMPILE_OK`, `ci/lint.sh` → `PASSED`. New
+  `src/server/Services/FarmPlotSpawner.luau` (engine-glue, no new pure logic): builds each player's
+  physical Farm Plot from primitive Parts (a wood-plank tile per `farmSlots` entry, a 4-beam wooden
+  fence sized to fit them) — no Toolbox/Studio-authored fence/tile asset exists yet, unlike
+  `DragonModels`/`EggModels`. `DragonSpawner.Spawn` now positions an already-assigned dragon on its
+  Farm Plot tile (falling back to the old Nursery-lane placeholder only when no slot was available
+  at hatch time); `DragonSpawner.RespawnAll` now respawns every owned dragon regardless of
+  `AssignedSlotId` (previously only unassigned ones), closing `ADR-004`'s deferred world-presence
+  gap for the Adult-on-slot case. `init.server.luau`: builds the Farm Plot and grants the starter
+  egg in `PlayerAdded` (before `LoadCharacterAsync`, so `HatchSpawner.RespawnAllPending` picks up the
+  newly-granted pending hatch once the character loads); added an `AssignProducer` post-commit
+  branch so a manual re-assignment also moves the dragon's world model; `FarmPlotSpawner.Despawn`
+  added alongside the existing `HatchSpawner`/`DragonSpawner` despawn-on-leave calls.
+  **Not Studio-verified this pass** — no Roblox Studio MCP session was available. Started
+  `rojo serve default.project.json` (listening on `localhost:34872`) so the user's own Studio +
+  Rojo plugin can connect; the fence/tile geometry, a fresh hatch landing visibly on slot 1, and the
+  starter egg's world appearance/hatch still need a manual or MCP Studio pass to confirm.
+
 ## What's left
 
 Backlog items 1, 2, 4, 5 (including Phase B world-presence, later overridden by item 11), 6
 (Rules/Transaction layer only), 10 (Food Shop), 11 (Adult world-presence + full dragon-detail
-display), and 12 (ClearTestDragons) are done. Item 3 (engine-lane activation ADR) hasn't started.
-Items 7-9 haven't started. Item 6's Farm-Slot-specific world-presence (Adult+Nest models once
-*assigned to a slot*, Assign/Collect
-`ProximityPrompt`s) remains open as a follow-up pass — item 11 only covers the Nursery (pre-
-assignment) Adult display, not the Farm Slot itself. The test-harness vertical slice's manual
-Studio click-test is done for the original harness (2026-07-14/15), the Buy Egg/Hatch/Feed
-transaction UIs (2026-07-15/16), the Food Shop UI, and the Inventory Baby/Adult breakdown
-(2026-07-17) — no known outstanding gaps in any of them.
+display), 12 (ClearTestDragons), and 14 (Farm Plot + auto-placement + starter egg, Domain layer and
+engine-glue written, **not yet Studio-verified**) are done. Item 3 (engine-lane activation ADR)
+hasn't started. Items 7-9 and 13 (Plot Expansion) haven't started. Item 6's Nest-specific
+world-presence (the egg-pile model itself, a Collect `ProximityPrompt`) remains open as a follow-up
+pass — item 14 closed the Adult-dragon-on-its-slot half of item 6's original world-presence gap, but
+not the Nest object. The test-harness vertical slice's manual Studio click-test is done for the
+original harness (2026-07-14/15), the Buy Egg/Hatch/Feed transaction UIs (2026-07-15/16), the Food
+Shop UI, and the Inventory Baby/Adult breakdown (2026-07-17) — no known outstanding gaps in any of
+them. **Item 14 specifically still needs a Studio pass**: confirm the Farm Plot fence/tiles render
+without overlap, a fresh hatch's Baby model visibly lands on Farm Slot 1 (not the old Nursery lane),
+feeding it to Adult keeps it on that same tile with production now running, and a genuinely new
+profile gets exactly one free Hatching Egg sitting on the plot that hatches at real Common odds.
 
 ## Known bugs
 
 None found in the tested Domain layer. Fixed this week (not still open):
+- 2026-07-17: `FarmPlotSpawner.buildFence` drew all 4 boundary beams as full-length, fully sealing
+  the Farm Plot rectangle with no gap — a player had no way to walk in (user report: "farm đang
+  không có lối vào farm"). Fixed by splitting the near (-Z, spawn-facing) beam into two segments
+  around a centered `ENTRANCE_WIDTH` (8-stud) gap. Still not confirmed live in Studio (no player
+  session to observe — see "What's left").
 - 2026-07-14: a JS-style `${}` interpolation typo in the test helper, and `selene` crashing on Luau
   syntax without a `selene.toml` (tooling, not app bugs) — covered under Known gaps / techContext.md.
 - 2026-07-14: `DataService`'s unguarded `GetDataStore` call crashed the whole server `require()`

@@ -22,7 +22,30 @@ local DRAGON_CONFIG = {
 	rarities = {},
 }
 
-local function profileWithPendingHatch(hatchId: string, rarity: string, finishAt: number, nextEntityId: number?)
+local function emptyFarmSlots(count: number)
+	local slots = {}
+	for slotId = 1, count do
+		slots[slotId] = {
+			SlotId = slotId,
+			AssignedDragonUID = nil,
+			ProductionStartedAt = nil,
+			UncollectedEggCount = 0,
+			IsProductionPaused = false,
+		}
+	end
+	return slots
+end
+
+-- Defaults to 2 open farm slots (today's real starter-plot size) so every existing test
+-- that doesn't care about slot assignment still has somewhere for the auto-assign logic to
+-- place the new dragon; pass farmSlots explicitly to test slot-assignment behavior itself.
+local function profileWithPendingHatch(
+	hatchId: string,
+	rarity: string,
+	finishAt: number,
+	nextEntityId: number?,
+	farmSlots: { [number]: any }?
+)
 	return {
 		gold = 0,
 		inventory = {},
@@ -30,6 +53,7 @@ local function profileWithPendingHatch(hatchId: string, rarity: string, finishAt
 			[hatchId] = { Id = hatchId, Rarity = rarity, StartedAt = finishAt - 5, FinishAt = finishAt },
 		},
 		dragons = {},
+		farmSlots = farmSlots or emptyFarmSlots(2),
 		meta = { schemaVersion = 1, session = { jobId = nil, updatedAt = 0 }, nextEntityId = nextEntityId or 1 },
 	}
 end
@@ -138,6 +162,48 @@ local passed = Check.runAll({
 			Check.equal(profile.pendingHatches["1"].Rarity, "Common") -- unchanged until Commit
 			Check.equal(next(profile.dragons), nil) -- unchanged until Commit
 			Check.equal(staged.DragonRarity, "Common")
+		end,
+	},
+	{
+		name = "a freshly-hatched dragon is auto-assigned to the first open Farm Slot, with production not yet started",
+		run = function()
+			local profile = profileWithPendingHatch("1", "Common", 1005)
+			local ok, resultData = runFullTransaction(profile, { HatchId = "1" }, 1005, 0)
+
+			Check.isTrue(ok)
+			Check.equal(resultData.AssignedSlotId, 1)
+			Check.equal(profile.dragons["1"].AssignedSlotId, 1)
+			Check.equal(profile.farmSlots[1].AssignedDragonUID, "1")
+			Check.equal(profile.farmSlots[1].ProductionStartedAt, nil)
+			Check.equal(profile.farmSlots[2].AssignedDragonUID, nil) -- untouched
+		end,
+	},
+	{
+		name = "auto-assignment picks the lowest-numbered open slot, skipping an already-occupied one",
+		run = function()
+			local farmSlots = emptyFarmSlots(2)
+			farmSlots[1].AssignedDragonUID = "existing-dragon"
+			local profile = profileWithPendingHatch("1", "Common", 1005, nil, farmSlots)
+			local ok, resultData = runFullTransaction(profile, { HatchId = "1" }, 1005, 0)
+
+			Check.isTrue(ok)
+			Check.equal(resultData.AssignedSlotId, 2)
+			Check.equal(profile.dragons["1"].AssignedSlotId, 2)
+			Check.equal(profile.farmSlots[2].AssignedDragonUID, "1")
+		end,
+	},
+	{
+		name = "a dragon still hatches successfully with no Farm Slot when every slot is already occupied",
+		run = function()
+			local farmSlots = emptyFarmSlots(1)
+			farmSlots[1].AssignedDragonUID = "existing-dragon"
+			local profile = profileWithPendingHatch("1", "Common", 1005, nil, farmSlots)
+			local ok, resultData = runFullTransaction(profile, { HatchId = "1" }, 1005, 0)
+
+			Check.isTrue(ok)
+			Check.equal(resultData.AssignedSlotId, nil)
+			Check.equal(profile.dragons["1"].AssignedSlotId, nil)
+			Check.equal(profile.farmSlots[1].AssignedDragonUID, "existing-dragon") -- untouched
 		end,
 	},
 })

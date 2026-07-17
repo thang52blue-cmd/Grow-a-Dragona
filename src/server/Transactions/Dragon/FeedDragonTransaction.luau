@@ -15,7 +15,7 @@ function FeedDragonTransaction.Validate(_context, payload): (boolean, number?)
 end
 
 function FeedDragonTransaction.Stage(context, payload): (boolean, number?)
-	local ok, staged, code = FeedDragonRules.Stage(FoodConfig, context.Profile, payload)
+	local ok, staged, code = FeedDragonRules.Stage(FoodConfig, context.Profile, payload, context.TransactionTime)
 	if not ok then
 		return false, code
 	end

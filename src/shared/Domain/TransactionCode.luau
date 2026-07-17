@@ -32,6 +32,7 @@ local TransactionCode = {
 	DragonNotAdult = 45,
 	DragonAlreadyAssigned = 46,
 	NestEmpty = 47,
+	NothingToSell = 48,
 
 	InternalError = 100,
 }

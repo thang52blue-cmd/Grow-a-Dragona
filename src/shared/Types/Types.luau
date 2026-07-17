@@ -14,9 +14,14 @@ export type HatchingTierConfig = {
 	hatchDurationSeconds: number,
 }
 
+export type ProductionVariantConfig = {
+	goldMultiplier: number,
+	baseSellValue: number,
+}
+
 export type EggConfig = {
 	hatchingTiers: { [Rarity]: HatchingTierConfig },
-	productionVariants: { [EggVariant]: { goldMultiplier: number } },
+	productionVariants: { [EggVariant]: ProductionVariantConfig },
 }
 
 export type ElementConfig = {
@@ -92,10 +97,20 @@ export type ProductionEggInventory = {
 	Golden: number,
 }
 
+-- Per-Rarity breakdown of the laying dragon's rarity, keyed the same way as `Profile.dragons`'
+-- own `Rarity` field -- needed (not just a flat variant bucket) because SellProductionEggRules
+-- must apply the *laying* dragon's own rarity multiplier per egg (GDD §8), which a flat
+-- `{variant: count}` bucket can't distinguish. See adr/ADR-006-production-egg-rarity-inventory.md.
+export type ProductionEggInventoryByRarity = { [Rarity]: ProductionEggInventory }
+
 export type ProductionConfig = {
 	productionIntervalSeconds: number,
 	nestCapacity: number,
 	startingFarmSlots: number,
+	-- GDD §2 "Production egg variant odds scale with dragon rarity" table -- each Rarity's own
+	-- variant odds, summing to 1, used by CollectNestRules to roll each newly-produced egg's
+	-- variant against the *laying* dragon's rarity.
+	variantOddsByRarity: { [Rarity]: { [EggVariant]: number } },
 }
 
 export type Session = {
@@ -107,6 +122,7 @@ export type ProfileMeta = {
 	schemaVersion: number,
 	session: Session,
 	nextEntityId: number,
+	starterHatchGranted: boolean,
 }
 
 export type Profile = {
@@ -115,7 +131,7 @@ export type Profile = {
 	pendingHatches: { [string]: PendingHatch },
 	dragons: { [string]: DragonRecord },
 	farmSlots: { [number]: FarmSlot },
-	productionEggInventory: ProductionEggInventory,
+	productionEggInventory: ProductionEggInventoryByRarity,
 	lastPosition: Position?,
 	meta: ProfileMeta,
 }

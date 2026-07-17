@@ -11,7 +11,12 @@ local FOOD_CONFIG = {
 	Dark = { "Lemon", "VinegarBerry", "DarkCrystal" },
 }
 
-local function profileWithDragon(dragonUID: string, overrides: { [string]: any }?, inventory: { [string]: number }?)
+local function profileWithDragon(
+	dragonUID: string,
+	overrides: { [string]: any }?,
+	inventory: { [string]: number }?,
+	farmSlots: { [number]: any }?
+)
 	local dragon = {
 		Id = dragonUID,
 		Rarity = "Common",
@@ -19,6 +24,7 @@ local function profileWithDragon(dragonUID: string, overrides: { [string]: any }
 		GrowthStage = "Baby_0",
 		FeedCount = 0,
 		HatchedAt = 0,
+		AssignedSlotId = nil,
 	}
 	if overrides then
 		for k, v in overrides do
@@ -31,17 +37,18 @@ local function profileWithDragon(dragonUID: string, overrides: { [string]: any }
 		inventory = inventory or {},
 		pendingHatches = {},
 		dragons = { [dragonUID] = dragon },
+		farmSlots = farmSlots or {},
 		meta = { schemaVersion = 1, session = { jobId = nil, updatedAt = 0 }, nextEntityId = 2 },
 	}
 end
 
-local function runFullTransaction(profile, payload)
+local function runFullTransaction(profile, payload, now: number?)
 	local validateOk, validateCode = FeedDragonRules.Validate(payload)
 	if not validateOk then
 		return false, validateCode
 	end
 
-	local stageOk, staged, stageCode = FeedDragonRules.Stage(FOOD_CONFIG, profile, payload)
+	local stageOk, staged, stageCode = FeedDragonRules.Stage(FOOD_CONFIG, profile, payload, now or 0)
 	if not stageOk then
 		return false, stageCode
 	end
@@ -163,12 +170,69 @@ local passed = Check.runAll({
 		name = "Stage does not mutate the profile even though it computes new values",
 		run = function()
 			local profile = profileWithDragon("1", nil, { ChiliPepper = 3 })
-			local ok, staged = FeedDragonRules.Stage(FOOD_CONFIG, profile, { DragonUID = "1" })
+			local ok, staged = FeedDragonRules.Stage(FOOD_CONFIG, profile, { DragonUID = "1" }, 0)
 
 			Check.isTrue(ok)
 			Check.equal(profile.dragons["1"].FeedCount, 0) -- unchanged until Commit
 			Check.equal(profile.inventory.ChiliPepper, 3) -- unchanged until Commit
 			Check.equal(staged.NewFeedCount, 1)
+		end,
+	},
+	{
+		name = "the 4th Feed auto-starts production on the dragon's already-assigned Farm Slot",
+		run = function()
+			local farmSlots = {
+				[1] = {
+					SlotId = 1,
+					AssignedDragonUID = "1",
+					ProductionStartedAt = nil,
+					UncollectedEggCount = 0,
+					IsProductionPaused = false,
+				},
+			}
+			local profile = profileWithDragon(
+				"1",
+				{ GrowthStage = "Baby_3", FeedCount = 3, AssignedSlotId = 1 },
+				{ ChiliPepper = 1 },
+				farmSlots
+			)
+			local ok, resultData = runFullTransaction(profile, { DragonUID = "1" }, 5000)
+
+			Check.isTrue(ok)
+			Check.isTrue(resultData.BecameAdult)
+			Check.equal(profile.farmSlots[1].ProductionStartedAt, 5000)
+			Check.equal(profile.farmSlots[1].AssignedDragonUID, "1") -- untouched
+		end,
+	},
+	{
+		name = "a Feed that doesn't transform the dragon to Adult never touches farmSlots",
+		run = function()
+			local farmSlots = {
+				[1] = {
+					SlotId = 1,
+					AssignedDragonUID = "1",
+					ProductionStartedAt = nil,
+					UncollectedEggCount = 0,
+					IsProductionPaused = false,
+				},
+			}
+			local profile = profileWithDragon("1", { AssignedSlotId = 1 }, { ChiliPepper = 1 }, farmSlots)
+			local ok, resultData = runFullTransaction(profile, { DragonUID = "1" }, 5000)
+
+			Check.isTrue(ok)
+			Check.isFalse(resultData.BecameAdult)
+			Check.equal(profile.farmSlots[1].ProductionStartedAt, nil)
+		end,
+	},
+	{
+		name = "the 4th Feed on a dragon with no assigned Farm Slot leaves farmSlots untouched",
+		run = function()
+			local profile = profileWithDragon("1", { GrowthStage = "Baby_3", FeedCount = 3 }, { ChiliPepper = 1 }, {})
+			local ok, resultData = runFullTransaction(profile, { DragonUID = "1" }, 5000)
+
+			Check.isTrue(ok)
+			Check.isTrue(resultData.BecameAdult)
+			Check.equal(next(profile.farmSlots), nil)
 		end,
 	},
 })

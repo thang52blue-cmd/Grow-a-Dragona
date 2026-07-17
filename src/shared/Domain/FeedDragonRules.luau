@@ -18,6 +18,7 @@ export type StagedFeedDragon = {
 	BecameAdult: boolean,
 	NewDragons: { [string]: Types.DragonRecord },
 	NewInventory: Types.Inventory,
+	NewFarmSlots: { [number]: Types.FarmSlot },
 }
 
 -- Validate: read-only, payload shape only. Ownership/state is checked in Stage against the
@@ -42,7 +43,8 @@ end
 function FeedDragonRules.Stage(
 	foodConfig: Types.FoodConfig,
 	profile: Types.Profile,
-	payload: { [string]: any }
+	payload: { [string]: any },
+	now: number
 ): (boolean, StagedFeedDragon?, number?)
 	local dragonUID = payload.DragonUID :: string
 	local dragon = profile.dragons[dragonUID]
@@ -90,6 +92,25 @@ function FeedDragonRules.Stage(
 		AssignedSlotId = dragon.AssignedSlotId,
 	}
 
+	-- Auto-start production the instant the dragon becomes Adult, if it already has a Farm
+	-- Slot (every dragon gets one at hatch time now -- see ClaimHatchRules). No separate
+	-- manual AssignProducer call is needed for a dragon's *first* production start; that
+	-- transaction remains available for later manual re-placement (e.g. after Storage/swap).
+	local newFarmSlots = profile.farmSlots
+	if becameAdult and dragon.AssignedSlotId ~= nil then
+		local slot = profile.farmSlots[dragon.AssignedSlotId]
+		if slot then
+			newFarmSlots = table.clone(profile.farmSlots)
+			newFarmSlots[dragon.AssignedSlotId] = {
+				SlotId = slot.SlotId,
+				AssignedDragonUID = slot.AssignedDragonUID,
+				ProductionStartedAt = now,
+				UncollectedEggCount = slot.UncollectedEggCount,
+				IsProductionPaused = slot.IsProductionPaused,
+			}
+		end
+	end
+
 	return true,
 		{
 			DragonUID = dragonUID,
@@ -99,6 +120,7 @@ function FeedDragonRules.Stage(
 			BecameAdult = becameAdult,
 			NewDragons = newDragons,
 			NewInventory = newInventory,
+			NewFarmSlots = newFarmSlots,
 		},
 		nil
 end
@@ -109,6 +131,7 @@ end
 function FeedDragonRules.Commit(profile: Types.Profile, staged: StagedFeedDragon): { [string]: any }
 	profile.dragons = staged.NewDragons
 	profile.inventory = staged.NewInventory
+	profile.farmSlots = staged.NewFarmSlots
 
 	return {
 		DragonUID = staged.DragonUID,

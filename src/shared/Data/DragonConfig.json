@@ -7,11 +7,11 @@
     "Dark": { "foodType": "SourAcid", "synergyType": "RaidDefense" }
   },
   "elementOdds": {
-    "Fire": 0.2,
-    "Water": 0.2,
-    "Earth": 0.2,
-    "Light": 0.2,
-    "Dark": 0.2
+    "Fire": 0.25,
+    "Water": 0.25,
+    "Earth": 0.25,
+    "Light": 0.125,
+    "Dark": 0.125
   },
   "rarities": {
     "Common": { "productionMultiplier": 1 },
